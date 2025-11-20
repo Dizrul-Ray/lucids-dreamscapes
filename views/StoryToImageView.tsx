@@ -1,34 +1,32 @@
+
 import React, { useState } from 'react';
+import { User } from '../types';
 import { generateImageFromStory } from '../services/geminiService';
-import { saveContent } from '../utils';
-import { Sparkles, Loader2, Image as ImageIcon, CheckCircle, Eye } from 'lucide-react';
+import { savePost, base64ToBlob, uploadFile } from '../utils';
+import { Loader2, Image as ImageIcon, CheckCircle, Eye, Download, Share2 } from 'lucide-react';
 
-const simpleId = () => Math.random().toString(36).substring(2, 9);
+interface Props {
+    user?: User | null;
+}
 
-const StoryToImageView: React.FC = () => {
+const StoryToImageView: React.FC<Props> = ({ user }) => {
   const [storyText, setStoryText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isPublished, setIsPublished] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleGenerate = async () => {
     if (!storyText.trim()) return;
 
     setIsGenerating(true);
     setError(null);
+    setIsPublished(false);
 
     try {
       const imageUrl = await generateImageFromStory(storyText);
       setGeneratedImage(imageUrl);
-      
-      saveContent({
-          id: simpleId(),
-          type: 'image',
-          createdAt: Date.now(),
-          result: imageUrl,
-          prompt: storyText
-      });
-
     } catch (err) {
       console.error(err);
       setError("The mists are too thick. The vision could not form.");
@@ -36,6 +34,38 @@ const StoryToImageView: React.FC = () => {
       setIsGenerating(false);
     }
   };
+
+  const handlePublish = async () => {
+      if (!generatedImage || !storyText || !user) return;
+      setIsSaving(true);
+
+      try {
+           // 1. Convert Base64 to Blob
+           const blob = await base64ToBlob(generatedImage);
+           
+           // 2. Upload to Storage
+           const filePath = `${user.id}/${Date.now()}_generated.jpg`;
+           const publicUrl = await uploadFile(blob, filePath);
+
+           if (!publicUrl) throw new Error("Failed to crystallize vision.");
+
+           // 3. Save Post
+           await savePost(
+               user.id,
+               'A Glimpse from the Void',
+               storyText,
+               publicUrl,
+               'image'
+           );
+           
+           setIsPublished(true);
+      } catch (e) {
+          console.error(e);
+          setError("Failed to save the vision.");
+      } finally {
+          setIsSaving(false);
+      }
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 h-full">
@@ -94,17 +124,45 @@ const StoryToImageView: React.FC = () => {
 
          {generatedImage ? (
             <div className="w-full h-full flex flex-col animate-fade-in relative z-10">
-                 <div className="flex justify-end mb-4 absolute top-4 right-4 z-20">
-                     <span className="inline-flex items-center gap-1 text-lucid-accent text-xs bg-black/80 backdrop-blur px-3 py-1 rounded-sm border border-lucid-accent/30 uppercase tracking-wider font-bold">
-                        <CheckCircle size={12} /> Captured
-                     </span>
+                 <div className="flex justify-end gap-2 mb-4 absolute top-4 right-4 z-20">
+                     <a href={generatedImage} download="vision.jpg" className="inline-flex items-center gap-1 text-stone-300 hover:text-white text-xs bg-black/80 backdrop-blur px-3 py-1 rounded-sm border border-stone-700 uppercase tracking-wider font-bold transition-colors">
+                        <Download size={12} /> Save to Device
+                     </a>
                  </div>
+
                  <div className="w-full h-full flex items-center justify-center bg-lucid-900/50">
                      <img 
                         src={generatedImage} 
                         alt="Generated visualization" 
                         className="max-w-full max-h-full object-contain shadow-[0_0_50px_rgba(0,0,0,0.8)]"
                      />
+                 </div>
+
+                 {/* Publish Button */}
+                 <div className="absolute bottom-4 left-0 right-0 flex justify-center">
+                    <button 
+                        onClick={handlePublish}
+                        disabled={isPublished || isSaving}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-sm uppercase text-xs font-bold tracking-widest transition-all backdrop-blur-md ${
+                            isPublished 
+                            ? 'bg-black/80 text-green-500 border border-green-900/50 cursor-default' 
+                            : 'bg-black/80 text-lucid-accent border border-lucid-accent/50 hover:bg-lucid-accent hover:text-black shadow-lg'
+                        }`}
+                    >
+                        {isSaving ? (
+                             <>
+                                <Loader2 size={16} className="animate-spin" /> Scribing...
+                            </>
+                        ) : isPublished ? (
+                            <>
+                                <CheckCircle size={16} /> Published to Archive
+                            </>
+                        ) : (
+                            <>
+                                <Share2 size={16} /> Publish to Archive
+                            </>
+                        )}
+                    </button>
                  </div>
             </div>
          ) : (

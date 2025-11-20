@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   name: string;
@@ -6,16 +7,16 @@ export interface User {
   avatar?: string;
 }
 
-export interface GeneratedContent {
+export interface SharedPost {
   id: string;
+  user_id: string; // Supabase UUID
+  authorName?: string; // Joined from profiles
+  title: string;
+  content: string; // The story text
+  image_url: string; // The associated image URL in Storage
   type: 'story' | 'image';
-  createdAt: number;
-  prompt?: string;
-  result: string; // Text content or Image URL
-  metadata?: {
-    wordCount?: number;
-    sourceImage?: string; // Base64 of source image for story generation
-  };
+  likes: number;
+  created_at: string; // ISO timestamp from DB
 }
 
 export enum ViewState {
@@ -24,6 +25,7 @@ export enum ViewState {
   IMG_TO_STORY = 'IMG_TO_STORY',
   STORY_TO_IMG = 'STORY_TO_IMG',
   RANDOM = 'RANDOM',
+  COMMUNITY = 'COMMUNITY',
   ADMIN = 'ADMIN',
 }
 

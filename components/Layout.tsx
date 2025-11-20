@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ViewState, User } from '../types';
 import { LUCID_AVATAR_URL } from '../utils';
@@ -7,7 +8,8 @@ import {
   BookOpen, 
   Shuffle, 
   LogOut, 
-  ShieldAlert
+  ShieldAlert,
+  Globe
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -39,7 +41,7 @@ const NavItem: React.FC<{
 
 const Layout: React.FC<LayoutProps> = ({ children, currentView, setCurrentView, user, logout }) => {
   return (
-    <div className="min-h-screen w-full bg-lucid-900 text-stone-300 flex overflow-hidden relative font-sans selection:bg-lucid-accent/30 selection:text-lucid-accent">
+    <div className="min-h-[100dvh] w-full bg-lucid-900 text-stone-300 flex overflow-hidden relative font-sans selection:bg-lucid-accent/30 selection:text-lucid-accent">
         {/* Atmospheric Background */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_100%,rgba(217,119,6,0.08),transparent_50%)] pointer-events-none" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(20,20,25,0.4),transparent_70%)] pointer-events-none" />
@@ -101,6 +103,13 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setCurrentView, 
             icon={<Shuffle size={18} />}
             label="Consult the Void"
           />
+          <div className="my-4 border-t border-lucid-800/50"></div>
+          <NavItem 
+            active={currentView === ViewState.COMMUNITY} 
+            onClick={() => setCurrentView(ViewState.COMMUNITY)}
+            icon={<Globe size={18} />}
+            label="The Grimm Archive"
+          />
           
           {user?.role === 'admin' && (
              <div className="pt-8 mt-8 border-t border-lucid-800">
@@ -123,6 +132,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setCurrentView, 
             <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
             <span className="text-sm font-medium">Depart</span>
           </button>
+          <p className="text-[10px] text-stone-700 text-center mt-4">v1.0 Live</p>
         </div>
       </aside>
 

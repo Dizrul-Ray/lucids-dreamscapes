@@ -1,6 +1,7 @@
-import React from 'react';
-import { GeneratedContent, User, ViewState } from '../types';
-import { getUserContent } from '../utils';
+
+import React, { useEffect, useState } from 'react';
+import { SharedPost, User, ViewState } from '../types';
+import { getUserPosts } from '../utils';
 import { Clock, Image as ImageIcon, BookOpen, Flame, Feather } from 'lucide-react';
 
 interface DashboardProps {
@@ -9,9 +10,15 @@ interface DashboardProps {
 }
 
 const DashboardView: React.FC<DashboardProps> = ({ user, onNavigate }) => {
-  const content = getUserContent().sort((a, b) => b.createdAt - a.createdAt);
+  const [content, setContent] = useState<SharedPost[]>([]);
 
-  const formatDate = (ts: number) => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  useEffect(() => {
+    if (user.id) {
+        getUserPosts(user.id).then(setContent);
+    }
+  }, [user.id]);
+
+  const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   return (
     <div className="space-y-10">
@@ -21,11 +28,6 @@ const DashboardView: React.FC<DashboardProps> = ({ user, onNavigate }) => {
             Welcome, <span className="text-lucid-accent">{user.name}</span>.
             </h2>
             <p className="text-stone-500 text-lg font-serif italic">The fire is warm, and the shadows are listening.</p>
-        </div>
-        <div className="hidden md:block text-right">
-            <span className="inline-block px-3 py-1 bg-lucid-900 border border-lucid-700 text-lucid-accent text-xs uppercase tracking-widest rounded-full">
-                Dreamscape Beta
-            </span>
         </div>
       </header>
 
@@ -101,13 +103,13 @@ const DashboardView: React.FC<DashboardProps> = ({ user, onNavigate }) => {
                     <div key={item.id} className="bg-lucid-800/40 border border-lucid-800 rounded-sm overflow-hidden flex flex-col hover:border-lucid-700 transition-colors group">
                         {item.type === 'image' ? (
                             <div className="aspect-video w-full bg-black relative overflow-hidden">
-                                <img src={item.result} alt="Generated" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-700" />
+                                <img src={item.image_url} alt="Generated" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-700" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-lucid-900 via-transparent to-transparent opacity-60"></div>
                             </div>
                         ) : (
                              <div className="aspect-video w-full bg-lucid-900 p-8 relative overflow-hidden">
                                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-lucid-800 via-lucid-700 to-lucid-800"></div>
-                                 <p className="font-serif text-stone-400 italic line-clamp-6 leading-loose text-sm border-l-2 border-lucid-800 pl-4 group-hover:border-lucid-accent transition-colors">{item.result}</p>
+                                 <p className="font-serif text-stone-400 italic line-clamp-6 leading-loose text-sm border-l-2 border-lucid-800 pl-4 group-hover:border-lucid-accent transition-colors">{item.content}</p>
                              </div>
                         )}
                         <div className="p-5 flex justify-between items-center bg-black/40 border-t border-lucid-800">
@@ -115,7 +117,7 @@ const DashboardView: React.FC<DashboardProps> = ({ user, onNavigate }) => {
                                  {item.type === 'story' ? <Feather size={14} className="text-stone-500" /> : <ImageIcon size={14} className="text-stone-500" />}
                                  <span className="text-xs font-bold text-stone-500 uppercase tracking-widest group-hover:text-stone-300 transition-colors">{item.type}</span>
                              </div>
-                             <span className="text-xs text-stone-600 font-mono">{formatDate(item.createdAt)}</span>
+                             <span className="text-xs text-stone-600 font-mono">{formatDate(item.created_at)}</span>
                         </div>
                     </div>
                 ))}

@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { generateRandomConcept, generateStoryFromPrompt, generateImageFromStory } from '../services/geminiService';
-import { saveContent } from '../utils';
 import { Dices, Loader2, BookOpen, Image as ImageIcon, Flame } from 'lucide-react';
+import { User } from '../types';
 
-const simpleId = () => Math.random().toString(36).substring(2, 9);
-
-const RandomView: React.FC = () => {
+const RandomView: React.FC<{ user: User | null }> = ({ user }) => {
   const [isRolling, setIsRolling] = useState(false);
   const [result, setResult] = useState<{ type: 'story' | 'image', content: string, prompt: string } | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
@@ -25,12 +23,10 @@ const RandomView: React.FC = () => {
             setStatusMessage("Weaving the threads of fate...");
             const story = await generateStoryFromPrompt(concept.prompt, 500); 
             setResult({ type: 'story', content: story, prompt: concept.prompt });
-            saveContent({ id: simpleId(), type: 'story', createdAt: Date.now(), result: story, prompt: concept.prompt });
         } else {
             setStatusMessage("Manifesting the dream...");
             const imageUrl = await generateImageFromStory(concept.prompt);
             setResult({ type: 'image', content: imageUrl, prompt: concept.prompt });
-            saveContent({ id: simpleId(), type: 'image', createdAt: Date.now(), result: imageUrl, prompt: concept.prompt });
         }
 
     } catch (error) {

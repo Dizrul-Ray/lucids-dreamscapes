@@ -1,19 +1,23 @@
+
 import React, { useState } from 'react';
-import { WordCountOption } from '../types';
+import { WordCountOption, User } from '../types';
 import { generateStoryFromImage } from '../services/geminiService';
-import { fileToBase64, getMimeType, saveContent } from '../utils';
-import { Upload, Loader2, FileText, CheckCircle, Scroll } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
+import { fileToBase64, getMimeType, uploadFile, savePost } from '../utils';
+import { Upload, Loader2, CheckCircle, Scroll, Share2 } from 'lucide-react';
 
-const simpleId = () => Math.random().toString(36).substring(2, 9);
+interface Props {
+    user?: User | null;
+}
 
-const ImageToStoryView: React.FC = () => {
+const ImageToStoryView: React.FC<Props> = ({ user }) => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [wordCount, setWordCount] = useState<WordCountOption>(500);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedStory, setGeneratedStory] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isPublished, setIsPublished] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -29,6 +33,7 @@ const ImageToStoryView: React.FC = () => {
       
       setGeneratedStory(null);
       setError(null);
+      setIsPublished(false);
     }
   };
 
@@ -37,6 +42,7 @@ const ImageToStoryView: React.FC = () => {
 
     setIsGenerating(true);
     setError(null);
+    setIsPublished(false);
 
     try {
       const base64 = await fileToBase64(imageFile);
@@ -44,24 +50,39 @@ const ImageToStoryView: React.FC = () => {
       const story = await generateStoryFromImage(base64, mimeType, wordCount);
       
       setGeneratedStory(story);
-      
-      // Save to "db"
-      saveContent({
-          id: simpleId(),
-          type: 'story',
-          createdAt: Date.now(),
-          result: story,
-          metadata: {
-              wordCount,
-              sourceImage: base64
-          }
-      });
-
     } catch (err) {
       setError("The vision is clouded. The spirits could not speak.");
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handlePublish = async () => {
+      if (!generatedStory || !imageFile || !user) return;
+      setIsSaving(true);
+
+      try {
+          // 1. Upload Image
+          const filePath = `${user.id}/${Date.now()}_${imageFile.name}`;
+          const publicUrl = await uploadFile(imageFile, filePath);
+          
+          if (!publicUrl) throw new Error("Failed to upload image offering.");
+
+          // 2. Save Post
+          await savePost(
+              user.id,
+              generatedStory.split('\n')[0] || 'Untitled Vision',
+              generatedStory,
+              publicUrl,
+              'story'
+          );
+
+          setIsPublished(true);
+      } catch (e) {
+          setError("Failed to scribe to the archive.");
+      } finally {
+          setIsSaving(false);
+      }
   };
 
   return (
@@ -150,9 +171,10 @@ const ImageToStoryView: React.FC = () => {
         {/* Inner border for manuscript look */}
         <div className="absolute top-2 bottom-2 left-2 right-2 border border-lucid-800 pointer-events-none"></div>
         
-        <div className="w-full h-full p-8 md:p-12 overflow-hidden relative">
+        <div className="w-full h-full p-8 md:p-12 overflow-hidden relative flex flex-col">
              {generatedStory ? (
-                <div className="animate-fade-in h-full overflow-y-auto custom-scrollbar pr-4 relative z-10">
+                <>
+                <div className="animate-fade-in flex-1 overflow-y-auto custom-scrollbar pr-4 relative z-10">
                     <div className="flex justify-end mb-6 sticky top-0 bg-lucid-900/95 pb-4 border-b border-lucid-800 z-20">
                          <span className="inline-flex items-center gap-2 text-lucid-accent text-xs uppercase tracking-widest">
                             <CheckCircle size={14} /> Inscribed in History
@@ -165,6 +187,33 @@ const ImageToStoryView: React.FC = () => {
                         ***
                     </div>
                 </div>
+
+                <div className="mt-6 pt-4 border-t border-lucid-800 flex justify-center z-20">
+                    <button 
+                        onClick={handlePublish}
+                        disabled={isPublished || isSaving}
+                        className={`flex items-center gap-2 px-6 py-2 rounded-sm uppercase text-xs font-bold tracking-widest transition-all ${
+                            isPublished 
+                            ? 'text-green-600 cursor-default' 
+                            : 'text-lucid-accent hover:bg-lucid-800 hover:shadow-lg'
+                        }`}
+                    >
+                        {isSaving ? (
+                            <>
+                                <Loader2 size={16} className="animate-spin" /> Scribing...
+                            </>
+                        ) : isPublished ? (
+                            <>
+                                <CheckCircle size={16} /> Saved to Archive
+                            </>
+                        ) : (
+                            <>
+                                <Share2 size={16} /> Save & Publish
+                            </>
+                        )}
+                    </button>
+                </div>
+                </>
             ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-lucid-800 opacity-60 z-0">
                     <Scroll size={64} className="mb-4 stroke-1" />
