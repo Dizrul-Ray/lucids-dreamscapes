@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../services/supabase';
 import { LUCID_AVATAR_URL, checkUsernameAvailability } from '../utils';
-import { ArrowRight, KeyRound, User as UserIcon, Flame, Mail, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowRight, KeyRound, User as UserIcon, Flame, Mail, Loader2, AlertCircle, Skull } from 'lucide-react';
 
 const AuthView: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -11,6 +11,7 @@ const AuthView: React.FC = () => {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,9 +47,6 @@ const AuthView: React.FC = () => {
                 },
             });
             if (error) throw error;
-            
-            // Optional: Automatically sign in if email confirmation is disabled in Supabase
-            // If confirmation is enabled, user will see a message to check email.
         }
     } catch (err: any) {
         setError(err.message || "Authentication failed");
@@ -66,15 +64,18 @@ const AuthView: React.FC = () => {
         <div className="relative z-10 w-full max-w-md p-8 animate-fade-in">
             <div className="text-center mb-8">
                 <div className="inline-block relative group">
-                    <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-full overflow-hidden border-4 border-lucid-900 shadow-[0_0_50px_rgba(217,119,6,0.2)] mb-8 mx-auto relative z-10 bg-black">
-                        <img 
-                            src={LUCID_AVATAR_URL} 
-                            alt="Lucid the Storyteller" 
-                            className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700 opacity-90" 
-                            onError={(e) => {
-                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1531384441138-2736e62e0919?q=80&w=1000&auto=format&fit=crop'; // Fallback image
-                            }}
-                        />
+                    <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-full overflow-hidden border-4 border-lucid-900 shadow-[0_0_50px_rgba(217,119,6,0.2)] mb-8 mx-auto relative z-10 bg-black flex items-center justify-center">
+                        {!imageError ? (
+                            <img 
+                                src={LUCID_AVATAR_URL} 
+                                alt="Lucid the Storyteller" 
+                                className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700 opacity-90" 
+                                onError={() => setImageError(true)}
+                            />
+                        ) : (
+                            <Skull size={80} className="text-lucid-800 animate-pulse-slow" />
+                        )}
+                        
                         {/* Obsidian sheen overlay */}
                         <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none mix-blend-overlay"></div>
                     </div>

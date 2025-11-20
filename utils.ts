@@ -3,6 +3,7 @@ import { SharedPost } from "./types";
 import { supabase } from "./services/supabase";
 
 // Represents Lucid the Storyteller. 
+// This points to public/IMG_0980.JPEG
 export const LUCID_AVATAR_URL = "/IMG_0980.JPEG";
 
 export const fileToBase64 = (file: File): Promise<string> => {
