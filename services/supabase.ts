@@ -1,12 +1,28 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Fallback to empty strings to prevent crash during build, 
-// but these MUST be set in Cloudflare Environment Variables for the app to work.
-const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || '';
+// Safely retrieve environment variables to prevent crashes if import.meta.env is undefined
+const getEnvVar = (key: string): string => {
+  try {
+    // Check if import.meta.env exists (Vite standard)
+    if (import.meta && (import.meta as any).env && (import.meta as any).env[key]) {
+      return (import.meta as any).env[key];
+    }
+  } catch (e) {
+    // Ignore access errors
+  }
+  return '';
+};
+
+const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
+const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase keys are missing! Make sure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set.');
+  console.warn('Supabase keys are missing! Make sure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in Cloudflare/Environment.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Initialize with valid strings or placeholders to ensure the app doesn't crash on startup.
+// The connection will simply fail gracefully (network error) if keys are invalid, rather than crashing the whole app.
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co', 
+  supabaseAnonKey || 'placeholder-key'
+);
