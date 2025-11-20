@@ -1,5 +1,8 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 
+// Fallback declaration for process to prevent build errors if types are missing
+declare const process: { env: { [key: string]: string | undefined } };
+
 // Check for API key
 const API_KEY = process.env.API_KEY;
 
