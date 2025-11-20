@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { LUCID_AVATAR_URL } from '../utils';
-import { ArrowRight, KeyRound, User as UserIcon, Flame } from 'lucide-react';
+import { ArrowRight, KeyRound, User as UserIcon, Flame, Mail } from 'lucide-react';
 
 interface AuthProps {
   onLogin: (user: User) => void;
@@ -69,41 +69,50 @@ const AuthView: React.FC<AuthProps> = ({ onLogin }) => {
                 <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-lucid-accent/40"></div>
                 <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-lucid-accent/40"></div>
 
-                <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
+                <form onSubmit={handleSubmit} className="space-y-6 relative z-10 mt-2">
                     {!isLogin && (
                         <div>
                              <label className="block text-xs font-bold text-lucid-accent uppercase tracking-widest mb-2">Identity</label>
-                             <input 
-                                type="text" 
-                                required={!isLogin}
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                className="w-full bg-black/50 border border-lucid-700 rounded-sm px-4 py-3 text-stone-200 focus:border-lucid-accent focus:ring-1 focus:ring-lucid-accent/50 transition-all outline-none placeholder-stone-700"
-                                placeholder="Your Name"
-                             />
+                             <div className="relative">
+                                 <UserIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500" />
+                                 <input 
+                                    type="text" 
+                                    required={!isLogin}
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    className="w-full bg-black/50 border border-lucid-700 rounded-sm pl-10 pr-4 py-3 text-stone-200 focus:border-lucid-accent focus:ring-1 focus:ring-lucid-accent/50 transition-all outline-none placeholder-stone-700 text-sm"
+                                    placeholder="Your Name"
+                                 />
+                             </div>
                         </div>
                     )}
                     <div>
                          <label className="block text-xs font-bold text-lucid-accent uppercase tracking-widest mb-2">Email</label>
-                         <input 
-                            type="email" 
-                            required
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-black/50 border border-lucid-700 rounded-sm px-4 py-3 text-stone-200 focus:border-lucid-accent focus:ring-1 focus:ring-lucid-accent/50 transition-all outline-none placeholder-stone-700"
-                            placeholder="wanderer@example.com"
-                         />
+                         <div className="relative">
+                             <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500" />
+                             <input 
+                                type="email" 
+                                required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full bg-black/50 border border-lucid-700 rounded-sm pl-10 pr-4 py-3 text-stone-200 focus:border-lucid-accent focus:ring-1 focus:ring-lucid-accent/50 transition-all outline-none placeholder-stone-700 text-sm"
+                                placeholder="wanderer@example.com"
+                             />
+                         </div>
                     </div>
                     <div>
                          <label className="block text-xs font-bold text-lucid-accent uppercase tracking-widest mb-2">Secret Key</label>
-                         <input 
-                            type="password" 
-                            required
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full bg-black/50 border border-lucid-700 rounded-sm px-4 py-3 text-stone-200 focus:border-lucid-accent focus:ring-1 focus:ring-lucid-accent/50 transition-all outline-none placeholder-stone-700"
-                            placeholder="••••••••"
-                         />
+                         <div className="relative">
+                             <KeyRound size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500" />
+                             <input 
+                                type="password" 
+                                required
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full bg-black/50 border border-lucid-700 rounded-sm pl-10 pr-4 py-3 text-stone-200 focus:border-lucid-accent focus:ring-1 focus:ring-lucid-accent/50 transition-all outline-none placeholder-stone-700 text-sm"
+                                placeholder="••••••••"
+                             />
+                         </div>
                     </div>
 
                     <button 

@@ -15,11 +15,18 @@ const DashboardView: React.FC<DashboardProps> = ({ user, onNavigate }) => {
 
   return (
     <div className="space-y-10">
-      <header className="mb-12 border-b border-lucid-800 pb-6">
-        <h2 className="text-4xl font-display font-bold text-stone-200 mb-2 tracking-wide">
-          Welcome, <span className="text-lucid-accent">{user.name}</span>.
-        </h2>
-        <p className="text-stone-500 text-lg font-serif italic">The fire is warm, and the shadows are listening.</p>
+      <header className="mb-12 border-b border-lucid-800 pb-6 flex justify-between items-end">
+        <div>
+            <h2 className="text-4xl font-display font-bold text-stone-200 mb-2 tracking-wide">
+            Welcome, <span className="text-lucid-accent">{user.name}</span>.
+            </h2>
+            <p className="text-stone-500 text-lg font-serif italic">The fire is warm, and the shadows are listening.</p>
+        </div>
+        <div className="hidden md:block text-right">
+            <span className="inline-block px-3 py-1 bg-lucid-900 border border-lucid-700 text-lucid-accent text-xs uppercase tracking-widest rounded-full">
+                Dreamscape Beta
+            </span>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
