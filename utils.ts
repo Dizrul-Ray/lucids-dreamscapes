@@ -34,6 +34,38 @@ export const getMimeType = (file: File): string => {
 
 // --- Supabase Database Functions ---
 
+export const checkUsernameAvailability = async (username: string): Promise<boolean> => {
+    try {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('username')
+            .ilike('username', username) // Case insensitive check
+            .maybeSingle();
+            
+        if (error) throw error;
+        // If data exists, the username is taken
+        return !data;
+    } catch (error) {
+        console.error("Error checking username:", error);
+        return true; // Fail open to allow try, db constraint will catch it ultimately
+    }
+};
+
+export const getUserProfile = async (userId: string) => {
+    try {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .maybeSingle();
+            
+        if (error) return null;
+        return data;
+    } catch (error) {
+        return null;
+    }
+};
+
 export const uploadFile = async (file: File | Blob, path: string): Promise<string | null> => {
     try {
         const { data, error } = await supabase.storage

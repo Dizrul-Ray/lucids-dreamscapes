@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { supabase } from '../services/supabase';
-import { LUCID_AVATAR_URL } from '../utils';
+import { LUCID_AVATAR_URL, checkUsernameAvailability } from '../utils';
 import { ArrowRight, KeyRound, User as UserIcon, Flame, Mail, Loader2, AlertCircle } from 'lucide-react';
 
 const AuthView: React.FC = () => {
@@ -25,6 +25,17 @@ const AuthView: React.FC = () => {
             });
             if (error) throw error;
         } else {
+            // 1. Check if username is taken
+            if (name.length < 3) {
+                throw new Error("Display name must be at least 3 characters.");
+            }
+            
+            const isAvailable = await checkUsernameAvailability(name);
+            if (!isAvailable) {
+                throw new Error(`The name "${name}" is already woven into the dreamscape. Choose another.`);
+            }
+
+            // 2. Create Account
             const { error } = await supabase.auth.signUp({
                 email,
                 password,
@@ -35,6 +46,9 @@ const AuthView: React.FC = () => {
                 },
             });
             if (error) throw error;
+            
+            // Optional: Automatically sign in if email confirmation is disabled in Supabase
+            // If confirmation is enabled, user will see a message to check email.
         }
     } catch (err: any) {
         setError(err.message || "Authentication failed");
@@ -53,7 +67,14 @@ const AuthView: React.FC = () => {
             <div className="text-center mb-8">
                 <div className="inline-block relative group">
                     <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-full overflow-hidden border-4 border-lucid-900 shadow-[0_0_50px_rgba(217,119,6,0.2)] mb-8 mx-auto relative z-10 bg-black">
-                        <img src={LUCID_AVATAR_URL} alt="Lucid the Storyteller" className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700 opacity-90" />
+                        <img 
+                            src={LUCID_AVATAR_URL} 
+                            alt="Lucid the Storyteller" 
+                            className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700 opacity-90" 
+                            onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1531384441138-2736e62e0919?q=80&w=1000&auto=format&fit=crop'; // Fallback image
+                            }}
+                        />
                         {/* Obsidian sheen overlay */}
                         <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none mix-blend-overlay"></div>
                     </div>
@@ -83,7 +104,7 @@ const AuthView: React.FC = () => {
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     className="w-full bg-black/50 border border-lucid-700 rounded-sm pl-10 pr-4 py-3 text-stone-200 focus:border-lucid-accent focus:ring-1 focus:ring-lucid-accent/50 transition-all outline-none placeholder-stone-700 text-sm"
-                                    placeholder="Your Name"
+                                    placeholder="Your Display Name"
                                  />
                              </div>
                         </div>
@@ -118,8 +139,8 @@ const AuthView: React.FC = () => {
                     </div>
 
                     {error && (
-                        <div className="text-red-400 text-xs bg-red-900/20 p-3 rounded border border-red-900/50 flex items-center gap-2">
-                            <AlertCircle size={14} /> {error}
+                        <div className="text-red-400 text-xs bg-red-900/20 p-3 rounded border border-red-900/50 flex items-center gap-2 animate-fade-in">
+                            <AlertCircle size={14} className="shrink-0" /> <span>{error}</span>
                         </div>
                     )}
 

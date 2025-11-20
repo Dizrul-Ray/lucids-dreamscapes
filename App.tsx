@@ -9,44 +9,52 @@ import StoryToImageView from './views/StoryToImageView';
 import RandomView from './views/RandomView';
 import CommunityView from './views/CommunityView';
 import Layout from './components/Layout';
-import { getAdminStats } from './utils';
+import { getAdminStats, getUserProfile } from './utils';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [view, setView] = useState<ViewState>(ViewState.AUTH);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+  const loadUserSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
       if (session?.user) {
+        const profile = await getUserProfile(session.user.id);
+        const email = session.user.email;
+        
+        // Hardcoded override for your specific account
+        const isAdmin = email === 'Dizrul@icloud.com' || profile?.role === 'admin';
+
         setUser({
             id: session.user.id,
-            email: session.user.email || '',
-            name: session.user.user_metadata.name || 'Dreamer',
-            role: 'user' // Admin role logic would go here in a real app
+            email: email || '',
+            name: profile?.username || session.user.user_metadata.name || 'Dreamer',
+            role: isAdmin ? 'admin' : 'user'
         });
         setView(ViewState.DASHBOARD);
+      } else {
+        setUser(null);
+        setView(ViewState.AUTH);
       }
       setLoading(false);
-    });
+  };
+
+  useEffect(() => {
+    // Initial Load
+    loadUserSession();
 
     // Listen for changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            name: session.user.user_metadata.name || 'Dreamer',
-            role: 'user'
-        });
-        if (view === ViewState.AUTH) setView(ViewState.DASHBOARD);
-      } else {
-        setUser(null);
-        setView(ViewState.AUTH);
-      }
+       if (session) {
+           // Reload to fetch profile/role data properly
+           loadUserSession();
+       } else {
+           setUser(null);
+           setView(ViewState.AUTH);
+       }
     });
 
     return () => subscription.unsubscribe();
@@ -72,14 +80,15 @@ const App: React.FC = () => {
       case ViewState.COMMUNITY:
         return <CommunityView />;
       case ViewState.ADMIN:
-        if (user?.email !== 'admin@lucidsdreamscapes.com') return <DashboardView user={user!} onNavigate={setView} />;
+        // Only show admin panel if user is admin
+        if (user?.role !== 'admin') return <DashboardView user={user!} onNavigate={setView} />;
         return <AdminPanel />;
       default:
         return <DashboardView user={user!} onNavigate={setView} />;
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-stone-500">Loading Dreamscape...</div>;
+  if (loading) return <div className="min-h-screen bg-lucid-900 flex items-center justify-center text-lucid-accent font-display tracking-widest animate-pulse">Entering the Dreamscape...</div>;
 
   if (!user || view === ViewState.AUTH) {
     return <AuthView />;
@@ -101,25 +110,33 @@ const AdminPanel: React.FC = () => {
 
     return (
         <div className="space-y-8">
-            <h2 className="text-3xl font-display font-bold text-white">Admin Overseer</h2>
+            <div className="border-b border-lucid-800 pb-6">
+                <h2 className="text-3xl font-display font-bold text-stone-200">Admin Overseer</h2>
+                <p className="text-stone-500 font-serif italic">Dominion over the dreamscape.</p>
+            </div>
+            
             <div className="grid grid-cols-3 gap-6">
-                <div className="bg-white/5 border border-white/10 p-6 rounded-xl">
-                    <h3 className="text-slate-400 text-sm uppercase">Total Creations</h3>
-                    <p className="text-4xl font-bold text-white mt-2">{stats.total}</p>
+                <div className="bg-lucid-800/40 border border-lucid-700 p-8 rounded-sm">
+                    <h3 className="text-stone-500 text-xs uppercase tracking-widest mb-2">Total Creations</h3>
+                    <p className="text-5xl font-display font-bold text-stone-200">{stats.total}</p>
                 </div>
-                <div className="bg-purple-500/10 border border-purple-500/20 p-6 rounded-xl">
-                    <h3 className="text-purple-300 text-sm uppercase">Stories Woven</h3>
-                    <p className="text-4xl font-bold text-purple-400 mt-2">{stats.stories}</p>
+                <div className="bg-lucid-800/40 border border-lucid-700 p-8 rounded-sm">
+                    <h3 className="text-stone-500 text-xs uppercase tracking-widest mb-2">Stories Woven</h3>
+                    <p className="text-5xl font-display font-bold text-lucid-accent">{stats.stories}</p>
                 </div>
-                <div className="bg-blue-500/10 border border-blue-500/20 p-6 rounded-xl">
-                    <h3 className="text-blue-300 text-sm uppercase">Images Manifested</h3>
-                    <p className="text-4xl font-bold text-blue-400 mt-2">{stats.images}</p>
+                <div className="bg-lucid-800/40 border border-lucid-700 p-8 rounded-sm">
+                    <h3 className="text-stone-500 text-xs uppercase tracking-widest mb-2">Images Manifested</h3>
+                    <p className="text-5xl font-display font-bold text-stone-300">{stats.images}</p>
                 </div>
             </div>
-            <div className="p-6 bg-yellow-900/20 border border-yellow-600/30 rounded-xl text-yellow-200">
-                <h4 className="font-bold mb-2">System Status</h4>
-                <p className="text-sm opacity-80">Gemini API Connection: Active</p>
-                <p className="text-sm opacity-80">Database: Supabase Live</p>
+            
+            <div className="p-6 bg-lucid-900 border border-lucid-accent/20 rounded-sm text-lucid-accent">
+                <h4 className="font-bold mb-2 uppercase tracking-widest text-sm">System Status</h4>
+                <div className="flex items-center gap-4 text-sm opacity-80 font-mono">
+                    <span className="flex items-center gap-2"><span className="w-2 h-2 bg-green-500 rounded-full"></span> API Connection: Active</span>
+                    <span className="flex items-center gap-2"><span className="w-2 h-2 bg-green-500 rounded-full"></span> Database: Live</span>
+                    <span className="flex items-center gap-2"><span className="w-2 h-2 bg-green-500 rounded-full"></span> Admin Mode: Active</span>
+                </div>
             </div>
         </div>
     )
