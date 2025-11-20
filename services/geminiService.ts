@@ -1,17 +1,21 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 
 // Check for API key
-if (!process.env.API_KEY) {
-  console.error("API_KEY is missing from environment variables.");
+const API_KEY = process.env.API_KEY;
+
+if (!API_KEY) {
+  console.warn("API_KEY is missing. The app will not function correctly until it is set in Cloudflare Environment Variables.");
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+const ai = new GoogleGenAI({ apiKey: API_KEY || 'placeholder_key_to_prevent_crash' });
 
 export const generateStoryFromImage = async (
   imageBase64: string,
   mimeType: string,
   wordCount: number
 ): Promise<string> => {
+  if (!API_KEY) throw new Error("API Key is missing. Please add API_KEY to Cloudflare Environment Variables.");
+  
   try {
     const model = 'gemini-2.5-flash';
     const prompt = `Write a creative, engaging short story based on this image. The story should be approximately ${wordCount} words long. Use evocative language and strong imagery. Title the story at the beginning.`;
@@ -41,6 +45,8 @@ export const generateStoryFromImage = async (
 };
 
 export const generateImageFromStory = async (storyText: string): Promise<string> => {
+  if (!API_KEY) throw new Error("API Key is missing. Please add API_KEY to Cloudflare Environment Variables.");
+
   try {
     // Summarize the story first to get a good image prompt, as the full story might be too long/complex for the image model directly
     const summaryModel = 'gemini-2.5-flash';
@@ -77,6 +83,8 @@ export const generateImageFromStory = async (storyText: string): Promise<string>
 };
 
 export const generateRandomConcept = async (): Promise<{ type: 'story' | 'image', prompt: string }> => {
+  if (!API_KEY) throw new Error("API Key is missing. Please add API_KEY to Cloudflare Environment Variables.");
+
   try {
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
@@ -101,6 +109,7 @@ export const generateRandomConcept = async (): Promise<{ type: 'story' | 'image'
 };
 
 export const generateStoryFromPrompt = async (prompt: string, wordCount: number = 500): Promise<string> => {
+     if (!API_KEY) throw new Error("API Key is missing. Please add API_KEY to Cloudflare Environment Variables.");
      try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
