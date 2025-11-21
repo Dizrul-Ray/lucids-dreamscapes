@@ -1,10 +1,9 @@
-
 import { SharedPost } from "./types";
 import { supabase } from "./services/supabase";
 
 // Represents Lucid the Storyteller. 
-// This points to public/IMG_0980.JPEG
-export const LUCID_AVATAR_URL = "/IMG_0980.JPEG";
+// This points to public/logo.png (Make sure you upload this file to GitHub!)
+export const LUCID_AVATAR_URL = "/logo.png";
 
 export const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {

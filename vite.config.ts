@@ -7,8 +7,10 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
-      // This ensures process.env.API_KEY is replaced with the actual value during build
+      // Explicitly replace these variables during build to ensure they exist in Cloudflare
       'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      'process.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL),
+      'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY),
     },
   };
 });
