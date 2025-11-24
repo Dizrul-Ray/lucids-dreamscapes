@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Modality } from "@google/genai";
 
 // Fallback declaration for process to prevent build errors if types are missing
@@ -17,7 +18,7 @@ export const generateStoryFromImage = async (
   mimeType: string,
   wordCount: number
 ): Promise<string> => {
-  if (!API_KEY) throw new Error("API Key is missing. Please add API_KEY to Cloudflare Environment Variables.");
+  if (!API_KEY) throw new Error("API Key is missing.");
   
   try {
     const model = 'gemini-2.5-flash';
@@ -48,10 +49,9 @@ export const generateStoryFromImage = async (
 };
 
 export const generateImageFromStory = async (storyText: string): Promise<string> => {
-  if (!API_KEY) throw new Error("API Key is missing. Please add API_KEY to Cloudflare Environment Variables.");
+  if (!API_KEY) throw new Error("API Key is missing.");
 
   try {
-    // Summarize the story first to get a good image prompt, as the full story might be too long/complex for the image model directly
     const summaryModel = 'gemini-2.5-flash';
     const summaryResponse = await ai.models.generateContent({
         model: summaryModel,
@@ -59,60 +59,43 @@ export const generateImageFromStory = async (storyText: string): Promise<string>
     });
     
     const imagePrompt = summaryResponse.text || "A dreamlike scene from a story.";
-    console.log("Generated Image Prompt:", imagePrompt);
 
-    const response = await ai.models.generateImages({
-      model: 'imagen-4.0-generate-001',
-      prompt: imagePrompt + " --artistic --dreamlike --high-quality",
-      config: {
-        numberOfImages: 1,
-        outputMimeType: 'image/jpeg',
-        aspectRatio: '1:1',
+    // Using gemini-2.5-flash-image for reliable, unlimited generation
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [{ text: imagePrompt + " --artistic --dark-fantasy --high-quality" }],
       },
+      config: {
+        responseMimeType: 'image/jpeg' 
+      }
     });
 
-    const base64ImageBytes = response.generatedImages?.[0]?.image?.imageBytes;
-    if (!base64ImageBytes) {
-      throw new Error("No image data returned");
+    // Check specifically for inlineData in parts (standard for flash-image output)
+    const candidates = response.candidates;
+    if (candidates && candidates.length > 0 && candidates[0].content && candidates[0].content.parts) {
+         for (const part of candidates[0].content.parts) {
+             if (part.inlineData && part.inlineData.data) {
+                 return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+             }
+         }
     }
     
-    return `data:image/jpeg;base64,${base64ImageBytes}`;
+    throw new Error("No image data returned from Gemini.");
 
   } catch (error) {
     console.error("Error generating image:", error);
-    // Fallback or re-throw
     throw new Error("The mists are too thick. Could not generate image.");
   }
 };
 
 export const generateRandomConcept = async (): Promise<{ type: 'story' | 'image', prompt: string }> => {
-  if (!API_KEY) throw new Error("API Key is missing. Please add API_KEY to Cloudflare Environment Variables.");
-
-  try {
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: "Generate a random, creative prompt for EITHER a short story OR an image generation. Return ONLY a JSON object with two fields: 'type' (either 'story' or 'image') and 'prompt' (the creative prompt text). For story prompts, suggest a unique scenario. For image prompts, describe a surreal scene.",
-        config: {
-            responseMimeType: "application/json"
-        }
-    });
-    
-    const text = response.text;
-    if (!text) throw new Error("Empty response");
-    
-    const data = JSON.parse(text);
-    return {
-        type: data.type === 'image' ? 'image' : 'story',
-        prompt: data.prompt
-    };
-  } catch (error) {
-    console.error("Random generation failed", error);
-    return { type: 'story', prompt: 'Write a story about a clock that runs backwards.' };
-  }
+    // Legacy function, keeping for compatibility
+    return { type: 'story', prompt: 'Legacy randomizer.' };
 };
 
 export const generateStoryFromPrompt = async (prompt: string, wordCount: number = 500): Promise<string> => {
-     if (!API_KEY) throw new Error("API Key is missing. Please add API_KEY to Cloudflare Environment Variables.");
+     if (!API_KEY) throw new Error("API Key is missing.");
      try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
@@ -122,4 +105,43 @@ export const generateStoryFromPrompt = async (prompt: string, wordCount: number 
      } catch(e) {
          throw e;
      }
+}
+
+// NEW: For Admin Inspiration
+export const generateDarkFantasyPrompt = async (): Promise<{prompt: string, imageUrl: string}> => {
+    if (!API_KEY) throw new Error("API Key is missing.");
+
+    try {
+        // 1. Generate the Prompt Text
+        const textResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: "Generate a detailed visual description of a unique Dark Fantasy character in an intricate, mysterious setting. Describe their appearance, the environment, and the mood. Keep it under 50 words. Be evocative.",
+        });
+        const promptText = textResponse.text || "A mysterious figure in the dark.";
+
+        // 2. Generate the Image
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image',
+            contents: {
+                parts: [{ text: promptText + " --dark-fantasy --oil-painting-style --masterpiece" }],
+            },
+        });
+        
+        let imageUrl = '';
+        const candidates = response.candidates;
+        if (candidates && candidates.length > 0 && candidates[0].content && candidates[0].content.parts) {
+            for (const part of candidates[0].content.parts) {
+                if (part.inlineData && part.inlineData.data) {
+                    imageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+                }
+            }
+        }
+
+        if (!imageUrl) throw new Error("Failed to generate inspiration image.");
+
+        return { prompt: promptText, imageUrl };
+
+    } catch (e) {
+        throw e;
+    }
 }

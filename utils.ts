@@ -1,8 +1,7 @@
-import { SharedPost } from "./types";
+
+import { SharedPost, Comment } from "./types";
 import { supabase } from "./services/supabase";
 
-// Represents Lucid the Storyteller. 
-// This points to public/logo.png (Ensure this file exists in your repo!)
 export const LUCID_AVATAR_URL = "/logo.png";
 
 export const fileToBase64 = (file: File): Promise<string> => {
@@ -11,7 +10,6 @@ export const fileToBase64 = (file: File): Promise<string> => {
     reader.readAsDataURL(file);
     reader.onload = () => {
       if (typeof reader.result === 'string') {
-        // Remove the data URL prefix (e.g., "data:image/png;base64,")
         const base64 = reader.result.split(',')[1];
         resolve(base64);
       } else {
@@ -32,22 +30,17 @@ export const getMimeType = (file: File): string => {
     return file.type;
 }
 
-// --- Supabase Database Functions ---
-
 export const checkUsernameAvailability = async (username: string): Promise<boolean> => {
     try {
         const { data, error } = await supabase
             .from('profiles')
             .select('username')
-            .ilike('username', username) // Case insensitive check
+            .ilike('username', username)
             .maybeSingle();
-            
         if (error) throw error;
-        // If data exists, the username is taken
         return !data;
     } catch (error) {
-        console.error("Error checking username:", error);
-        return true; // Fail open to allow try, db constraint will catch it ultimately
+        return true;
     }
 };
 
@@ -58,7 +51,6 @@ export const getUserProfile = async (userId: string) => {
             .select('*')
             .eq('id', userId)
             .maybeSingle();
-            
         if (error) return null;
         return data;
     } catch (error) {
@@ -71,13 +63,10 @@ export const uploadFile = async (file: File | Blob, path: string): Promise<strin
         const { data, error } = await supabase.storage
             .from('images')
             .upload(path, file, { upsert: true });
-            
         if (error) throw error;
-        
         const { data: publicUrlData } = supabase.storage
             .from('images')
             .getPublicUrl(path);
-            
         return publicUrlData.publicUrl;
     } catch (error) {
         console.error("Error uploading file:", error);
@@ -90,7 +79,9 @@ export const savePost = async (
     title: string, 
     content: string, 
     imageUrl: string, 
-    type: 'story' | 'image'
+    type: 'story' | 'image',
+    series: string = 'Untitled Story',
+    status: 'active' | 'complete' = 'active'
 ): Promise<SharedPost | null> => {
     try {
         const { data, error } = await supabase
@@ -102,12 +93,13 @@ export const savePost = async (
                     content: content,
                     image_url: imageUrl,
                     type: type,
+                    story_series: series,
+                    status: status,
                     likes: 0
                 }
             ])
             .select()
             .single();
-            
         if (error) throw error;
         return data as SharedPost;
     } catch (error) {
@@ -116,51 +108,95 @@ export const savePost = async (
     }
 }
 
-export const getCommunityPosts = async (): Promise<SharedPost[]> => {
+// Fetch Active Stories (For Home Page)
+export const getActiveSeries = async (): Promise<SharedPost[]> => {
     try {
         const { data, error } = await supabase
             .from('posts')
-            .select(`
-                *,
-                profiles (username)
-            `)
-            .order('created_at', { ascending: false })
-            .limit(50);
-            
+            .select(`*, profiles!inner(role)`)
+            .eq('profiles.role', 'admin')
+            .eq('status', 'active')
+            .order('created_at', { ascending: false });
         if (error) throw error;
-        
-        // Map the joined profile data to authorName
-        return data.map((post: any) => ({
-            ...post,
-            authorName: post.profiles?.username || 'Unknown Dreamer'
-        }));
+        return data as SharedPost[];
     } catch (error) {
-        console.error("Error fetching posts:", error);
+        console.error("Error fetching active series:", error);
         return [];
     }
 };
 
-export const getUserPosts = async (userId: string): Promise<SharedPost[]> => {
+// Fetch Completed Books (For Bookshelf)
+export const getCompletedSeries = async (): Promise<SharedPost[]> => {
     try {
         const { data, error } = await supabase
             .from('posts')
-            .select('*')
-            .eq('user_id', userId)
+            .select(`*, profiles!inner(role)`)
+            .eq('profiles.role', 'admin')
+            .eq('status', 'complete')
             .order('created_at', { ascending: false });
-            
         if (error) throw error;
         return data as SharedPost[];
     } catch (error) {
-         console.error("Error fetching user posts:", error);
-         return [];
+        return [];
+    }
+};
+
+// Fetch Community Posts (For The Archive)
+export const getCommunityPosts = async (): Promise<SharedPost[]> => {
+    try {
+        const { data, error } = await supabase
+            .from('posts')
+            .select(`*, profiles(username)`)
+            .order('created_at', { ascending: false });
+            
+        if (error) throw error;
+        
+        return data.map((post: any) => ({
+            ...post,
+            authorName: post.profiles?.username || 'Unknown'
+        })) as SharedPost[];
+    } catch (error) {
+        console.error("Error fetching community posts:", error);
+        return [];
+    }
+};
+
+export const getPostComments = async (postId: string): Promise<Comment[]> => {
+    try {
+        const { data, error } = await supabase
+            .from('comments')
+            .select(`*, profiles(username)`)
+            .eq('post_id', postId)
+            .order('created_at', { ascending: true });
+            
+        if (error) return [];
+        return data.map((c: any) => ({
+            ...c,
+            authorName: c.profiles?.username || 'Unknown'
+        }));
+    } catch (error) {
+        return [];
+    }
+}
+
+export const addComment = async (postId: string, userId: string, content: string): Promise<Comment | null> => {
+    try {
+        const { data, error } = await supabase
+            .from('comments')
+            .insert([{ post_id: postId, user_id: userId, content }])
+            .select(`*, profiles(username)`)
+            .single();
+        if (error) throw error;
+         return {
+            ...data,
+            authorName: data.profiles?.username || 'Unknown'
+        };
+    } catch (error) {
+        return null;
     }
 }
 
 export const getAdminStats = async () => {
-    // Simple estimation using count
     const { count: total } = await supabase.from('posts').select('*', { count: 'exact', head: true });
-    const { count: stories } = await supabase.from('posts').select('*', { count: 'exact', head: true }).eq('type', 'story');
-    const { count: images } = await supabase.from('posts').select('*', { count: 'exact', head: true }).eq('type', 'image');
-    
-    return { total: total || 0, stories: stories || 0, images: images || 0 };
+    return { total: total || 0, stories: 0, images: 0 };
 };

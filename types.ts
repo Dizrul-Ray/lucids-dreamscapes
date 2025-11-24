@@ -9,24 +9,36 @@ export interface User {
 
 export interface SharedPost {
   id: string;
-  user_id: string; // Supabase UUID
-  authorName?: string; // Joined from profiles
+  user_id: string;
+  authorName?: string;
   title: string;
-  content: string; // The story text
-  image_url: string; // The associated image URL in Storage
+  content: string;
+  image_url: string;
   type: 'story' | 'image';
   likes: number;
-  created_at: string; // ISO timestamp from DB
+  created_at: string;
+  story_series?: string; // New: Group posts into a story
+  status?: 'active' | 'complete'; // New: Active on home, or Complete on bookshelf
+}
+
+export interface Comment {
+    id: string;
+    user_id: string;
+    authorName?: string;
+    content: string;
+    created_at: string;
 }
 
 export enum ViewState {
   AUTH = 'AUTH',
-  DASHBOARD = 'DASHBOARD',
+  DASHBOARD = 'DASHBOARD', // The Active Chronicles
+  BOOKSHELF = 'BOOKSHELF', // Completed Stories
   IMG_TO_STORY = 'IMG_TO_STORY',
   STORY_TO_IMG = 'STORY_TO_IMG',
-  RANDOM = 'RANDOM',
-  COMMUNITY = 'COMMUNITY',
+  COMMUNITY = 'COMMUNITY', // Can remain as "The Archive" or be removed
   ADMIN = 'ADMIN',
+  WRITER_DESK = 'WRITER_DESK',
+  MOTHER = 'MOTHER'
 }
 
 export type WordCountOption = 500 | 1000 | 2500;

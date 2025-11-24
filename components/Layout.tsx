@@ -3,13 +3,12 @@ import React from 'react';
 import { ViewState, User } from '../types';
 import { LUCID_AVATAR_URL } from '../utils';
 import { 
-  LayoutDashboard, 
-  Image as ImageIcon, 
   BookOpen, 
-  Shuffle, 
   LogOut, 
-  ShieldAlert,
-  Globe
+  Feather,
+  Ghost,
+  Library,
+  KeyRound
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -42,16 +41,11 @@ const NavItem: React.FC<{
 const Layout: React.FC<LayoutProps> = ({ children, currentView, setCurrentView, user, logout }) => {
   return (
     <div className="min-h-[100dvh] w-full bg-lucid-900 text-stone-300 flex overflow-hidden relative font-sans selection:bg-lucid-accent/30 selection:text-lucid-accent">
-        {/* Atmospheric Background */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_100%,rgba(217,119,6,0.08),transparent_50%)] pointer-events-none" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(20,20,25,0.4),transparent_70%)] pointer-events-none" />
-        
-        {/* Grain overlay for texture */}
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
 
-      {/* Sidebar */}
       <aside className="w-72 hidden md:flex flex-col border-r border-lucid-800 bg-lucid-900 z-20 relative">
-        {/* Sidebar Background Texture */}
          <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-transparent pointer-events-none"></div>
 
         <div className="p-8 relative z-10">
@@ -61,11 +55,11 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setCurrentView, 
             </div>
             <div>
                 <h1 className="text-xl font-display font-bold tracking-wider text-stone-200 group-hover:text-lucid-accent transition-colors">LUCID</h1>
-                <span className="text-[10px] uppercase tracking-[0.2em] text-stone-600">Storyteller</span>
+                <span className="text-[10px] uppercase tracking-[0.2em] text-stone-600">The Chronicler</span>
             </div>
           </div>
           
-          {user && (
+          {user ? (
             <div className="flex items-center space-x-3 p-3 bg-black/30 rounded-sm border border-lucid-700 mb-8">
                 <div className="w-10 h-10 rounded-full bg-lucid-800 border border-lucid-600 flex items-center justify-center font-display font-bold text-lucid-accent text-lg">
                     {user.name.charAt(0)}
@@ -75,64 +69,65 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setCurrentView, 
                     <p className="text-[10px] text-stone-600 truncate uppercase tracking-wide">{user.role}</p>
                 </div>
             </div>
+          ) : (
+            <div className="p-3 bg-black/30 rounded-sm border border-lucid-800 mb-8 text-center">
+                 <p className="text-xs text-stone-500 font-serif italic">Viewing as Guest</p>
+            </div>
           )}
         </div>
 
         <nav className="flex-1 px-4 space-y-2 relative z-10">
+          <p className="px-4 text-[10px] text-stone-600 uppercase tracking-widest mb-2 font-bold opacity-70">The Tales</p>
           <NavItem 
             active={currentView === ViewState.DASHBOARD} 
             onClick={() => setCurrentView(ViewState.DASHBOARD)}
-            icon={<LayoutDashboard size={18} />}
-            label="Sanctum"
-          />
-          <NavItem 
-            active={currentView === ViewState.IMG_TO_STORY} 
-            onClick={() => setCurrentView(ViewState.IMG_TO_STORY)}
             icon={<BookOpen size={18} />}
-            label="Image to Story"
+            label="Current Chronicles"
           />
           <NavItem 
-            active={currentView === ViewState.STORY_TO_IMG} 
-            onClick={() => setCurrentView(ViewState.STORY_TO_IMG)}
-            icon={<ImageIcon size={18} />}
-            label="Story to Image"
+            active={currentView === ViewState.BOOKSHELF} 
+            onClick={() => setCurrentView(ViewState.BOOKSHELF)}
+            icon={<Library size={18} />}
+            label="The Bookshelf"
           />
           <NavItem 
-            active={currentView === ViewState.RANDOM} 
-            onClick={() => setCurrentView(ViewState.RANDOM)}
-            icon={<Shuffle size={18} />}
-            label="Consult the Void"
-          />
-          <div className="my-4 border-t border-lucid-800/50"></div>
-          <NavItem 
-            active={currentView === ViewState.COMMUNITY} 
-            onClick={() => setCurrentView(ViewState.COMMUNITY)}
-            icon={<Globe size={18} />}
-            label="The Grimm Archive"
+            active={currentView === ViewState.MOTHER} 
+            onClick={() => setCurrentView(ViewState.MOTHER)}
+            icon={<Ghost size={18} />}
+            label="Origin: Mother"
           />
           
           {user?.role === 'admin' && (
-             <div className="pt-8 mt-8 border-t border-lucid-800">
-                 <p className="px-4 text-[10px] text-lucid-blood uppercase tracking-widest mb-2 font-bold opacity-70">Overseer</p>
+             <div className="pt-8 mt-8 border-t border-lucid-800 bg-lucid-800/20 -mx-4 px-8 py-4">
+                 <p className="text-[10px] text-lucid-accent uppercase tracking-widest mb-2 font-bold opacity-70">Lucid's Dominion</p>
                  <NavItem 
-                    active={currentView === ViewState.ADMIN} 
-                    onClick={() => setCurrentView(ViewState.ADMIN)}
-                    icon={<ShieldAlert size={18} />}
-                    label="Admin Panel"
+                    active={currentView === ViewState.WRITER_DESK} 
+                    onClick={() => setCurrentView(ViewState.WRITER_DESK)}
+                    icon={<Feather size={18} />}
+                    label="Writer's Desk"
                 />
              </div>
           )}
         </nav>
 
         <div className="p-4 border-t border-lucid-800 relative z-10">
-          <button 
-            onClick={logout}
-            className="w-full flex items-center space-x-3 px-4 py-3 text-stone-600 hover:text-red-900 transition-colors group"
-          >
-            <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
-            <span className="text-sm font-medium">Depart</span>
-          </button>
-          <p className="text-[10px] text-stone-700 text-center mt-4">v1.0 Live</p>
+          {user ? (
+              <button 
+                onClick={logout}
+                className="w-full flex items-center space-x-3 px-4 py-3 text-stone-600 hover:text-red-900 transition-colors group"
+              >
+                <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
+                <span className="text-sm font-medium">Depart</span>
+              </button>
+          ) : (
+              <button 
+                onClick={() => setCurrentView(ViewState.AUTH)}
+                className="w-full flex items-center space-x-3 px-4 py-3 text-stone-600 hover:text-lucid-accent transition-colors group"
+              >
+                <KeyRound size={18} className="group-hover:rotate-90 transition-transform" />
+                <span className="text-sm font-medium">Admin Access</span>
+              </button>
+          )}
         </div>
       </aside>
 
@@ -146,9 +141,8 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setCurrentView, 
          </div>
       </div>
 
-      {/* Main Content */}
       <main className="flex-1 overflow-y-auto h-screen relative z-10 p-4 md:p-10 pt-20 md:pt-10 scroll-smooth">
-        <div className="max-w-6xl mx-auto animate-fade-in">
+        <div className="max-w-4xl mx-auto animate-fade-in">
             {children}
         </div>
       </main>
