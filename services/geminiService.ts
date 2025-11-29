@@ -66,9 +66,7 @@ export const generateImageFromStory = async (storyText: string): Promise<string>
       contents: {
         parts: [{ text: imagePrompt + " --artistic --dark-fantasy --high-quality" }],
       },
-      config: {
-        responseMimeType: 'image/jpeg' 
-      }
+      // Note: responseMimeType is NOT supported for gemini-2.5-flash-image
     });
 
     // Check specifically for inlineData in parts (standard for flash-image output)
@@ -125,9 +123,7 @@ export const generateDarkFantasyPrompt = async (): Promise<{prompt: string, imag
             contents: {
                 parts: [{ text: promptText + " --dark-fantasy --oil-painting-style --masterpiece" }],
             },
-            config: {
-                responseMimeType: 'image/jpeg'
-            }
+            // Note: responseMimeType is NOT supported for gemini-2.5-flash-image
         });
         
         let imageUrl = '';
