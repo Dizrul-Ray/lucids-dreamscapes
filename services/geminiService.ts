@@ -125,6 +125,9 @@ export const generateDarkFantasyPrompt = async (): Promise<{prompt: string, imag
             contents: {
                 parts: [{ text: promptText + " --dark-fantasy --oil-painting-style --masterpiece" }],
             },
+            config: {
+                responseMimeType: 'image/jpeg'
+            }
         });
         
         let imageUrl = '';

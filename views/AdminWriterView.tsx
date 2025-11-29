@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { User } from '../types';
 import { savePost, uploadFile } from '../utils';
 import { generateDarkFantasyPrompt } from '../services/geminiService';
-import { Loader2, Feather, CheckCircle, Image as ImageIcon, Sparkles, Book } from 'lucide-react';
+import { Loader2, Feather, CheckCircle, Image as ImageIcon, Sparkles, Book, AlertCircle } from 'lucide-react';
 
 const AdminWriterView: React.FC<{ user: User | null }> = ({ user }) => {
   const [title, setTitle] = useState('');
@@ -17,6 +17,7 @@ const AdminWriterView: React.FC<{ user: User | null }> = ({ user }) => {
   
   const [isInspiring, setIsInspiring] = useState(false);
   const [inspiration, setInspiration] = useState<{prompt: string, imageUrl: string} | null>(null);
+  const [inspirationError, setInspirationError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -31,6 +32,7 @@ const AdminWriterView: React.FC<{ user: User | null }> = ({ user }) => {
 
   const handleInspiration = async () => {
       setIsInspiring(true);
+      setInspirationError(null);
       try {
           const result = await generateDarkFantasyPrompt();
           setInspiration(result);
@@ -38,6 +40,7 @@ const AdminWriterView: React.FC<{ user: User | null }> = ({ user }) => {
           if (!content) setContent(`[Inspiration: ${result.prompt}]\n\n`);
       } catch (e) {
           console.error(e);
+          setInspirationError("The void failed to answer. Try again.");
       } finally {
           setIsInspiring(false);
       }
@@ -55,9 +58,8 @@ const AdminWriterView: React.FC<{ user: User | null }> = ({ user }) => {
               const url = await uploadFile(imageFile, filePath);
               if (url) publicUrl = url;
           } else if (inspiration?.imageUrl) {
-               // If using AI image, we'd theoretically upload the blob. 
-               // For now, using the data URL is okay for quick prototypes but storing blob is better.
-               // We will just save the data URL directly to DB for this demo or leave empty.
+               // For quick inspiration, we save the data URL directly or leave empty
+               // Ideally we convert base64 to blob and upload, but this works for prototype
                publicUrl = inspiration.imageUrl;
           }
 
@@ -90,9 +92,9 @@ const AdminWriterView: React.FC<{ user: User | null }> = ({ user }) => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 flex gap-8">
+    <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8">
         {/* Left: Writing Area */}
-        <div className="flex-1 space-y-8">
+        <div className="flex-1 space-y-8 order-2 lg:order-1">
             <div className="border-b border-lucid-800 pb-6 flex justify-between items-end">
                 <div>
                     <h2 className="text-3xl font-display font-bold text-stone-200">The Writer's Desk</h2>
@@ -106,7 +108,7 @@ const AdminWriterView: React.FC<{ user: User | null }> = ({ user }) => {
             </div>
 
             {/* Meta Inputs */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input 
                     type="text" 
                     placeholder="Series Name (e.g. The Void Walker)"
@@ -114,12 +116,12 @@ const AdminWriterView: React.FC<{ user: User | null }> = ({ user }) => {
                     onChange={(e) => setSeriesName(e.target.value)}
                     className="bg-black/30 border border-lucid-800 rounded-sm px-4 py-3 text-stone-300 text-sm focus:border-lucid-accent focus:outline-none"
                 />
-                <div className="flex items-center gap-2 bg-black/30 border border-lucid-800 rounded-sm px-4">
+                <div className="flex items-center gap-2 bg-black/30 border border-lucid-800 rounded-sm px-4 py-3 md:py-0">
                     <input 
                         type="checkbox" 
                         checked={isComplete} 
                         onChange={(e) => setIsComplete(e.target.checked)}
-                        className="accent-lucid-accent"
+                        className="accent-lucid-accent w-4 h-4"
                     />
                     <span className="text-stone-500 text-sm uppercase font-bold tracking-wider">Mark Series Complete</span>
                 </div>
@@ -132,7 +134,7 @@ const AdminWriterView: React.FC<{ user: User | null }> = ({ user }) => {
                     placeholder="Chapter Title..."
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full bg-transparent text-4xl font-display font-bold text-stone-200 placeholder-lucid-800 border-b border-lucid-800 pb-4 focus:border-lucid-accent focus:outline-none transition-colors"
+                    className="w-full bg-transparent text-3xl md:text-4xl font-display font-bold text-stone-200 placeholder-lucid-800 border-b border-lucid-800 pb-4 focus:border-lucid-accent focus:outline-none transition-colors"
                 />
             </div>
 
@@ -171,7 +173,7 @@ const AdminWriterView: React.FC<{ user: User | null }> = ({ user }) => {
         </div>
 
         {/* Right: Tools & Inspiration */}
-        <div className="w-80 space-y-6">
+        <div className="w-full lg:w-80 space-y-6 order-1 lg:order-2">
              <div className="bg-lucid-900 border border-lucid-800 p-6 rounded-sm">
                  <h3 className="text-xs font-bold uppercase tracking-widest text-lucid-accent mb-4 flex items-center gap-2">
                      <Sparkles size={14} /> Inspiration Engine
@@ -188,6 +190,13 @@ const AdminWriterView: React.FC<{ user: User | null }> = ({ user }) => {
                      Click for Inspiration
                  </button>
 
+                 {inspirationError && (
+                     <div className="mt-4 p-3 bg-red-950/30 border border-red-900/50 rounded-sm flex items-start gap-2 text-red-400 text-xs">
+                         <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                         {inspirationError}
+                     </div>
+                 )}
+
                  {inspiration && (
                      <div className="mt-4 animate-fade-in space-y-4">
                          <div className="aspect-square bg-black rounded-sm overflow-hidden border border-lucid-700">
@@ -201,7 +210,7 @@ const AdminWriterView: React.FC<{ user: User | null }> = ({ user }) => {
                                 setImageFile(null);
                                 setImagePreview(inspiration.imageUrl);
                             }}
-                            className="w-full text-[10px] uppercase font-bold text-lucid-accent hover:text-white border border-lucid-accent/30 py-2 rounded-sm"
+                            className="w-full text-[10px] uppercase font-bold text-lucid-accent hover:text-white border border-lucid-accent/30 py-2 rounded-sm transition-colors"
                          >
                              Use as Cover Image
                          </button>
@@ -222,7 +231,7 @@ const AdminWriterView: React.FC<{ user: User | null }> = ({ user }) => {
                         type="file" 
                         accept="image/*"
                         onChange={handleFileChange}
-                        className="absolute inset-0 opacity-0 cursor-pointer z-20"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                     />
                     
                     {imagePreview ? (
