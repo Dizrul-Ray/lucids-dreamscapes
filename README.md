@@ -6,6 +6,8 @@ A clean writing-first web app built with React + Vite.
 
 - Email/password login and account creation flow.
 - Per-user draft persistence in local storage.
+- Save completed scenes into a personal creations library.
+- Reload or delete saved creations from your account.
 - Focused manuscript editor with live word count.
 - Daily word-goal progress tracker.
 - One-click creative prompt generator.

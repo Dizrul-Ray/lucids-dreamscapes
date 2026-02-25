@@ -7,6 +7,14 @@ type Character = {
   desire: string;
 };
 
+type SavedCreation = {
+  id: number;
+  savedAt: string;
+  title: string;
+  scene: string;
+  words: number;
+};
+
 type StoredUser = {
   email: string;
   password: string;
@@ -65,6 +73,7 @@ const App: React.FC = () => {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [authError, setAuthError] = useState('');
+  const [saveMessage, setSaveMessage] = useState('');
 
   const [user, setUser] = useState<StoredUser | null>(null);
 
@@ -73,6 +82,8 @@ const App: React.FC = () => {
   const [goal, setGoal] = useState(defaultWritingState.goal);
   const [prompt, setPrompt] = useState(defaultWritingState.prompt);
   const [characters, setCharacters] = useState<Character[]>(defaultWritingState.characters);
+  const [savedCreations, setSavedCreations] = useState<SavedCreation[]>([]);
+
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
   const [desire, setDesire] = useState('');
@@ -86,14 +97,19 @@ const App: React.FC = () => {
     setUser(activeUser);
 
     const draftRaw = localStorage.getItem(getDraftKey(activeUser.email));
-    if (!draftRaw) return;
+    if (draftRaw) {
+      const draft = JSON.parse(draftRaw) as WritingState;
+      setTitle(draft.title);
+      setScene(draft.scene);
+      setGoal(draft.goal);
+      setPrompt(draft.prompt);
+      setCharacters(draft.characters || []);
+    }
 
-    const draft = JSON.parse(draftRaw) as WritingState;
-    setTitle(draft.title);
-    setScene(draft.scene);
-    setGoal(draft.goal);
-    setPrompt(draft.prompt);
-    setCharacters(draft.characters || []);
+    const creationsRaw = localStorage.getItem(getCreationsKey(activeUser.email));
+    if (creationsRaw) {
+      setSavedCreations(JSON.parse(creationsRaw) as SavedCreation[]);
+    }
   }, []);
 
   useEffect(() => {
@@ -101,6 +117,11 @@ const App: React.FC = () => {
     const payload: WritingState = { title, scene, goal, prompt, characters };
     localStorage.setItem(getDraftKey(user.email), JSON.stringify(payload));
   }, [user, title, scene, goal, prompt, characters]);
+
+  useEffect(() => {
+    if (!user) return;
+    localStorage.setItem(getCreationsKey(user.email), JSON.stringify(savedCreations));
+  }, [user, savedCreations]);
 
   const words = useMemo(() => {
     const trimmed = scene.trim();
@@ -136,6 +157,36 @@ const App: React.FC = () => {
     setDesire('');
   };
 
+  const saveCreation = () => {
+    const cleanedScene = scene.trim();
+    if (!cleanedScene) {
+      setSaveMessage('Write something before saving.');
+      return;
+    }
+
+    const creation: SavedCreation = {
+      id: Date.now(),
+      savedAt: new Date().toISOString(),
+      title: title.trim() || 'Untitled Manuscript',
+      scene: cleanedScene,
+      words,
+    };
+
+    setSavedCreations((previous) => [creation, ...previous]);
+    setSaveMessage('Saved to your creations library.');
+  };
+
+  const loadCreation = (creation: SavedCreation) => {
+    setTitle(creation.title);
+    setScene(creation.scene);
+    setSaveMessage('Loaded saved creation into your workspace.');
+  };
+
+  const deleteCreation = (id: number) => {
+    setSavedCreations((previous) => previous.filter((creation) => creation.id !== id));
+    setSaveMessage('Saved creation removed.');
+  };
+
   const handleAuth = (event: React.FormEvent) => {
     event.preventDefault();
     setAuthError('');
@@ -167,6 +218,7 @@ const App: React.FC = () => {
       localStorage.setItem(USERS_KEY, JSON.stringify([...users, newUser]));
       localStorage.setItem(SESSION_KEY, newUser.email);
       setUser(newUser);
+      setSavedCreations([]);
       return;
     }
 
@@ -180,21 +232,23 @@ const App: React.FC = () => {
     setUser(existing);
 
     const draftRaw = localStorage.getItem(getDraftKey(existing.email));
-    if (!draftRaw) {
+    if (draftRaw) {
+      const draft = JSON.parse(draftRaw) as WritingState;
+      setTitle(draft.title);
+      setScene(draft.scene);
+      setGoal(draft.goal);
+      setPrompt(draft.prompt);
+      setCharacters(draft.characters || []);
+    } else {
       setTitle(defaultWritingState.title);
       setScene(defaultWritingState.scene);
       setGoal(defaultWritingState.goal);
       setPrompt(defaultWritingState.prompt);
       setCharacters(defaultWritingState.characters);
-      return;
     }
 
-    const draft = JSON.parse(draftRaw) as WritingState;
-    setTitle(draft.title);
-    setScene(draft.scene);
-    setGoal(draft.goal);
-    setPrompt(draft.prompt);
-    setCharacters(draft.characters || []);
+    const creationsRaw = localStorage.getItem(getCreationsKey(existing.email));
+    setSavedCreations(creationsRaw ? (JSON.parse(creationsRaw) as SavedCreation[]) : []);
   };
 
   const logout = () => {
@@ -203,11 +257,13 @@ const App: React.FC = () => {
     setEmail('');
     setPassword('');
     setDisplayName('');
+    setSaveMessage('');
     setTitle(defaultWritingState.title);
     setScene(defaultWritingState.scene);
     setGoal(defaultWritingState.goal);
     setPrompt(defaultWritingState.prompt);
     setCharacters(defaultWritingState.characters);
+    setSavedCreations([]);
   };
 
   if (!user) {
@@ -216,7 +272,7 @@ const App: React.FC = () => {
         <section className="card auth-card">
           <p className="eyebrow">Creative Writing Studio</p>
           <h1>{isRegister ? 'Create your account' : 'Welcome back, writer'}</h1>
-          <p className="muted">Sign in to save your drafts and character notes by user profile.</p>
+          <p className="muted">Sign in to save your drafts and creations by user profile.</p>
 
           <form className="stack" onSubmit={handleAuth}>
             {isRegister && (
@@ -304,6 +360,8 @@ const App: React.FC = () => {
           <p className="muted">
             <strong>{title}</strong> — {progress}% of today&apos;s goal complete.
           </p>
+          <button type="button" onClick={saveCreation}>Save This Creation</button>
+          {saveMessage && <p className="save-message">{saveMessage}</p>}
         </article>
 
         <article className="card">
@@ -333,6 +391,29 @@ const App: React.FC = () => {
             )}
           </ul>
         </article>
+      </section>
+
+      <section className="card">
+        <h2>Saved Creations</h2>
+        {savedCreations.length === 0 ? (
+          <p className="muted">Nothing saved yet. Create a scene and click “Save This Creation”.</p>
+        ) : (
+          <ul className="saved-list">
+            {savedCreations.map((creation) => (
+              <li key={creation.id}>
+                <div>
+                  <strong>{creation.title}</strong>
+                  <p className="muted">{new Date(creation.savedAt).toLocaleString()} · {creation.words} words</p>
+                  <p className="saved-excerpt">{creation.scene.slice(0, 180)}{creation.scene.length > 180 ? '…' : ''}</p>
+                </div>
+                <div className="saved-actions">
+                  <button type="button" onClick={() => loadCreation(creation)}>Load</button>
+                  <button type="button" className="danger" onClick={() => deleteCreation(creation.id)}>Delete</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </main>
   );
