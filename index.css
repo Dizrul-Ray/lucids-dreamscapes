@@ -1,30 +1,233 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+:root {
+  --bg: #0f1226;
+  --bg-soft: #151a36;
+  --border: #354080;
+  --text: #eef1ff;
+  --muted: #bcc4f2;
+  --accent: #7282ff;
+  --accent-2: #a168ff;
+  --danger: #cb3b6e;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
 
 body {
-  background-color: #0c0a09;
-  color: #a8a29e; /* Stone 400 */
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #202757 0%, var(--bg) 55%);
 }
 
-/* Custom scrollbar for gothic feel */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #1c1917; 
-}
-::-webkit-scrollbar-thumb {
-  background: #44403c; 
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #d97706; 
+.page {
+  width: min(1120px, calc(100% - 2rem));
+  margin: 2rem auto;
+  display: grid;
+  gap: 1rem;
 }
 
-.text-shadow-fire {
-  text-shadow: 0 0 10px rgba(217, 119, 6, 0.3);
+.auth-page {
+  max-width: 560px;
 }
-.text-shadow-sm {
-  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+
+.panel {
+  background: color-mix(in srgb, var(--bg-soft) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, white 10%);
+  border-radius: 14px;
+  padding: 1rem;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.32);
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #aeb8ff;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0.35rem 0 0.75rem;
+}
+
+.muted {
+  color: var(--muted);
+  margin: 0;
+}
+
+.error {
+  margin: 0;
+  color: #ffafc5;
+}
+
+.flash {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #4a57aa;
+  border-radius: 10px;
+  background: #172048;
+  color: #baf8da;
+}
+
+.header-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  align-items: start;
+}
+
+.account-card {
+  min-width: 220px;
+  display: grid;
+  gap: 0.3rem;
+  background: #141b3e;
+  border: 1px solid #3a478f;
+  border-radius: 12px;
+  padding: 0.75rem;
+}
+
+.account-card small {
+  color: var(--muted);
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+label,
+.stack {
+  display: grid;
+  gap: 0.45rem;
+  margin-bottom: 0.8rem;
+}
+
+input,
+textarea,
+button {
+  font: inherit;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1px solid #3a458c;
+  border-radius: 10px;
+  background: #151b3d;
+  color: var(--text);
+  padding: 0.65rem 0.75rem;
+}
+
+textarea {
+  min-height: 240px;
+  resize: vertical;
+}
+
+button {
+  border: 0;
+  border-radius: 10px;
+  color: white;
+  padding: 0.6rem 0.85rem;
+  cursor: pointer;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  font-weight: 600;
+}
+
+.button-secondary {
+  background: transparent;
+  border: 1px solid #5666c8;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.meter {
+  height: 10px;
+  background: #1a214b;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.meter span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #63f2d6, #7ea8ff);
+}
+
+.prompt {
+  border: 1px dashed #6978d8;
+  border-radius: 10px;
+  background: #141b3c;
+  padding: 0.8rem;
+  margin-top: 0;
+}
+
+.list {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.list li {
+  border: 1px solid #2e3772;
+  border-radius: 10px;
+  background: #121838;
+  padding: 0.65rem;
+}
+
+.list li span {
+  color: var(--muted);
+  display: block;
+}
+
+.list li p {
+  margin: 0.35rem 0 0;
+}
+
+.list-empty {
+  color: var(--muted);
+}
+
+.creations-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.actions {
+  align-items: start;
+}
+
+.excerpt {
+  margin-top: 0.45rem;
+}
+
+.danger {
+  background: linear-gradient(90deg, var(--danger), #aa244d);
+}
+
+@media (max-width: 860px) {
+  .header-row {
+    grid-template-columns: 1fr;
+  }
+
+  .account-card {
+    min-width: 0;
+  }
+
+  .creations-list li {
+    flex-direction: column;
+  }
 }
