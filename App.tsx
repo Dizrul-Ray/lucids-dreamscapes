@@ -66,7 +66,6 @@ const defaultWritingState: WritingState = {
 };
 
 const getDraftKey = (email: string) => `creative-writing-draft:${email}`;
-const getCreationsKey = (email: string) => `creative-writing-creations:${email}`;
 
 const App: React.FC = () => {
   const [isRegister, setIsRegister] = useState(false);
