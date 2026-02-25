@@ -1,20 +1,25 @@
-# Creative Writing Studio
+# Lucid's Dreamscapes
 
-A clean writing-first web app built with React + Vite.
+A local-first creative writing experience built with React + Vite.
 
-## Features
+## What was rewritten
 
-- Email/password login and account creation flow.
-- Per-user draft persistence in local storage.
-- Focused manuscript editor with live word count.
-- Daily word-goal progress tracker.
-- One-click creative prompt generator.
-- Character forge to track names, roles, and motivations.
+The app was rebuilt to provide a simpler and more reliable flow:
 
-## Notes
+- Local account creation + sign-in.
+- Autosaved per-user draft workspace.
+- Explicit save-to-library flow for creations.
+- Load/delete saved versions.
+- Prompt generator and character forge.
 
-- Authentication and data are currently local-only (`localStorage`) for fast prototyping.
-- This means accounts are tied to the current browser/device.
+## Local-first behavior
+
+All data is stored in browser `localStorage`:
+
+- `creative-writing/users`
+- `creative-writing/session`
+- `creative-writing/draft/<email>`
+- `creative-writing/creations/<email>`
 
 ## Run locally
 

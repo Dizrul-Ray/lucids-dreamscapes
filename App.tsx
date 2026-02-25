@@ -1,10 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
 
 type Character = {
-  id: number;
+  id: string;
   name: string;
   role: string;
   desire: string;
+};
+
+type SavedCreation = {
+  id: string;
+  savedAt: string;
+  title: string;
+  scene: string;
+  words: number;
 };
 
 type StoredUser = {
@@ -13,7 +21,7 @@ type StoredUser = {
   displayName: string;
 };
 
-type WritingState = {
+type DraftState = {
   title: string;
   scene: string;
   goal: number;
@@ -21,35 +29,38 @@ type WritingState = {
   characters: Character[];
 };
 
-const openingIdeas = [
-  'A librarian discovers a handwritten map hidden inside a returned book.',
-  'On the day rain disappears forever, a city starts to remember forgotten promises.',
-  'A ghostwriter begins hearing the voice of the author they are impersonating.',
-  'Every midnight, one apartment in the building resets to a different decade.',
-  'A chef can taste emotions in every dish and uncovers a crime through flavor.'
-];
+const STORAGE_KEYS = {
+  users: 'creative-writing/users',
+  session: 'creative-writing/session'
+} as const;
 
-const conflictIdeas = [
-  'The protagonist must choose between telling the truth and protecting someone they love.',
-  'A secret society offers power in exchange for one precious memory each month.',
-  'Two rivals are forced to collaborate before a deadline that cannot be moved.',
-  'A missing person returns with a warning no one believes.',
-  'A magical ability works perfectly, except when it is needed most.'
-];
+const prompts = {
+  openings: [
+    'A lighthouse keeper receives letters addressed to storms.',
+    'A forgotten train station appears on no map, yet everyone has passed through it once.',
+    'A pastry chef can bake memories into bread.',
+    'At sunrise, one street in town changes to a different century.',
+    'A translator discovers a language that predicts tomorrow.'
+  ],
+  conflicts: [
+    'Someone they love is at the center of the mystery.',
+    'Every answer costs one treasured memory.',
+    'A rival offers help, but only if the protagonist breaks their own rule.',
+    'Time is running out, and the wrong choice will erase a promise.',
+    'The truth helps one person and hurts another.'
+  ],
+  settings: [
+    'a floating market above cloud level',
+    'a rain-starved coastal city',
+    'a monastery carved into red cliffs',
+    'a glass-and-steel greenhouse district',
+    'an underground archive lit by bioluminescent ink'
+  ]
+};
 
-const settingIdeas = [
-  'solar-punk floating market',
-  'wind-beaten coastal monastery',
-  'underground city archive',
-  'forest train line at twilight',
-  'quiet suburb with one impossible house'
-];
+const DEFAULT_PROMPT = 'Press “Generate Prompt” for a new writing spark.';
 
-const DEFAULT_PROMPT = 'Click “New Prompt” to spark your next scene.';
-const USERS_KEY = 'creative-writing-users';
-const SESSION_KEY = 'creative-writing-session';
-
-const defaultWritingState: WritingState = {
+const defaultDraft: DraftState = {
   title: 'Untitled Manuscript',
   scene: '',
   goal: 750,
@@ -57,174 +68,261 @@ const defaultWritingState: WritingState = {
   characters: []
 };
 
-const getDraftKey = (email: string) => `creative-writing-draft:${email}`;
+const normalizeEmail = (value: string) => value.trim().toLowerCase();
+const draftKey = (email: string) => `creative-writing/draft/${normalizeEmail(email)}`;
+const creationsKey = (email: string) => `creative-writing/creations/${normalizeEmail(email)}`;
+
+const safeParse = <T,>(raw: string | null, fallback: T): T => {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+};
+
+const readUsers = (): StoredUser[] => safeParse<StoredUser[]>(localStorage.getItem(STORAGE_KEYS.users), []);
+const writeUsers = (users: StoredUser[]) => localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(users));
+const readDraft = (email: string): DraftState => safeParse<DraftState>(localStorage.getItem(draftKey(email)), defaultDraft);
+const writeDraft = (email: string, draft: DraftState) => localStorage.setItem(draftKey(email), JSON.stringify(draft));
+const readCreations = (email: string): SavedCreation[] => safeParse<SavedCreation[]>(localStorage.getItem(creationsKey(email)), []);
+const writeCreations = (email: string, creations: SavedCreation[]) => localStorage.setItem(creationsKey(email), JSON.stringify(creations));
+
+const randomFrom = (values: string[]) => values[Math.floor(Math.random() * values.length)];
 
 const App: React.FC = () => {
-  const [isRegister, setIsRegister] = useState(false);
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [user, setUser] = useState<StoredUser | null>(null);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [authError, setAuthError] = useState('');
 
-  const [user, setUser] = useState<StoredUser | null>(null);
+  const [title, setTitle] = useState(defaultDraft.title);
+  const [scene, setScene] = useState(defaultDraft.scene);
+  const [goal, setGoal] = useState(defaultDraft.goal);
+  const [prompt, setPrompt] = useState(defaultDraft.prompt);
+  const [characters, setCharacters] = useState<Character[]>(defaultDraft.characters);
 
-  const [title, setTitle] = useState(defaultWritingState.title);
-  const [scene, setScene] = useState(defaultWritingState.scene);
-  const [goal, setGoal] = useState(defaultWritingState.goal);
-  const [prompt, setPrompt] = useState(defaultWritingState.prompt);
-  const [characters, setCharacters] = useState<Character[]>(defaultWritingState.characters);
-  const [name, setName] = useState('');
-  const [role, setRole] = useState('');
-  const [desire, setDesire] = useState('');
+  const [characterName, setCharacterName] = useState('');
+  const [characterRole, setCharacterRole] = useState('');
+  const [characterDesire, setCharacterDesire] = useState('');
+
+  const [creations, setCreations] = useState<SavedCreation[]>([]);
+  const [flashMessage, setFlashMessage] = useState('');
+
+  const words = useMemo(() => {
+    const trimmed = scene.trim();
+    return trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length;
+  }, [scene]);
+
+  const progress = useMemo(() => {
+    if (goal <= 0) return 0;
+    return Math.min(100, Math.round((words / goal) * 100));
+  }, [goal, words]);
 
   useEffect(() => {
-    const sessionEmail = localStorage.getItem(SESSION_KEY);
-    const users: StoredUser[] = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-    const activeUser = users.find((stored) => stored.email === sessionEmail);
-    if (!activeUser) return;
+    const sessionEmail = normalizeEmail(localStorage.getItem(STORAGE_KEYS.session) || '');
+    if (!sessionEmail) return;
 
-    setUser(activeUser);
+    const existing = readUsers().find((stored) => stored.email === sessionEmail);
+    if (!existing) {
+      localStorage.removeItem(STORAGE_KEYS.session);
+      return;
+    }
 
-    const draftRaw = localStorage.getItem(getDraftKey(activeUser.email));
-    if (!draftRaw) return;
-
-    const draft = JSON.parse(draftRaw) as WritingState;
-    setTitle(draft.title);
-    setScene(draft.scene);
-    setGoal(draft.goal);
-    setPrompt(draft.prompt);
-    setCharacters(draft.characters || []);
+    setUser(existing);
+    const savedDraft = readDraft(existing.email);
+    setTitle(savedDraft.title);
+    setScene(savedDraft.scene);
+    setGoal(savedDraft.goal);
+    setPrompt(savedDraft.prompt);
+    setCharacters(savedDraft.characters || []);
+    setCreations(readCreations(existing.email));
   }, []);
 
   useEffect(() => {
     if (!user) return;
-    const payload: WritingState = { title, scene, goal, prompt, characters };
-    localStorage.setItem(getDraftKey(user.email), JSON.stringify(payload));
+    writeDraft(user.email, { title, scene, goal, prompt, characters });
   }, [user, title, scene, goal, prompt, characters]);
 
-  const words = useMemo(() => {
-    const trimmed = scene.trim();
-    return trimmed ? trimmed.split(/\s+/).length : 0;
-  }, [scene]);
+  useEffect(() => {
+    if (!user) return;
+    writeCreations(user.email, creations);
+  }, [user, creations]);
 
-  const progress = Math.min(100, Math.round((words / goal) * 100));
+  useEffect(() => {
+    if (!flashMessage) return;
+    const timer = window.setTimeout(() => setFlashMessage(''), 2400);
+    return () => window.clearTimeout(timer);
+  }, [flashMessage]);
 
   const generatePrompt = () => {
-    const opener = openingIdeas[Math.floor(Math.random() * openingIdeas.length)];
-    const conflict = conflictIdeas[Math.floor(Math.random() * conflictIdeas.length)];
-    const setting = settingIdeas[Math.floor(Math.random() * settingIdeas.length)];
-
-    setPrompt(`${opener} Set it in a ${setting}. ${conflict}`);
+    setPrompt(`${randomFrom(prompts.openings)} Set it in ${randomFrom(prompts.settings)}. ${randomFrom(prompts.conflicts)}`);
   };
 
-  const addCharacter = (event: React.FormEvent) => {
+  const addCharacter = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!name.trim() || !role.trim() || !desire.trim()) return;
 
-    setCharacters((previous) => [
-      ...previous,
-      {
-        id: Date.now(),
-        name: name.trim(),
-        role: role.trim(),
-        desire: desire.trim()
-      }
+    const name = characterName.trim();
+    const role = characterRole.trim();
+    const desire = characterDesire.trim();
+
+    if (!name || !role || !desire) {
+      setFlashMessage('Fill in all character fields first.');
+      return;
+    }
+
+    setCharacters((current) => [
+      { id: crypto.randomUUID(), name, role, desire },
+      ...current
     ]);
 
-    setName('');
-    setRole('');
-    setDesire('');
+    setCharacterName('');
+    setCharacterRole('');
+    setCharacterDesire('');
+    setFlashMessage('Character added.');
   };
 
-  const handleAuth = (event: React.FormEvent) => {
-    event.preventDefault();
-    setAuthError('');
+  const saveCreation = () => {
+    const cleanedTitle = title.trim() || 'Untitled Manuscript';
+    const cleanedScene = scene.trim();
 
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail || !password.trim()) {
-      setAuthError('Please enter an email and password.');
+    if (!cleanedScene) {
+      setFlashMessage('Write a scene before saving.');
       return;
     }
 
-    const users: StoredUser[] = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    const entry: SavedCreation = {
+      id: crypto.randomUUID(),
+      savedAt: new Date().toISOString(),
+      title: cleanedTitle,
+      scene: cleanedScene,
+      words
+    };
 
-    if (isRegister) {
-      if (!displayName.trim()) {
-        setAuthError('Please enter a display name.');
-        return;
-      }
-      if (users.some((existing) => existing.email === normalizedEmail)) {
-        setAuthError('An account with this email already exists.');
-        return;
-      }
-
-      const newUser: StoredUser = {
-        email: normalizedEmail,
-        password: password.trim(),
-        displayName: displayName.trim()
-      };
-
-      localStorage.setItem(USERS_KEY, JSON.stringify([...users, newUser]));
-      localStorage.setItem(SESSION_KEY, newUser.email);
-      setUser(newUser);
-      return;
-    }
-
-    const existing = users.find((stored) => stored.email === normalizedEmail && stored.password === password.trim());
-    if (!existing) {
-      setAuthError('Incorrect email or password.');
-      return;
-    }
-
-    localStorage.setItem(SESSION_KEY, existing.email);
-    setUser(existing);
-
-    const draftRaw = localStorage.getItem(getDraftKey(existing.email));
-    if (!draftRaw) {
-      setTitle(defaultWritingState.title);
-      setScene(defaultWritingState.scene);
-      setGoal(defaultWritingState.goal);
-      setPrompt(defaultWritingState.prompt);
-      setCharacters(defaultWritingState.characters);
-      return;
-    }
-
-    const draft = JSON.parse(draftRaw) as WritingState;
-    setTitle(draft.title);
-    setScene(draft.scene);
-    setGoal(draft.goal);
-    setPrompt(draft.prompt);
-    setCharacters(draft.characters || []);
+    setCreations((current) => [entry, ...current]);
+    setFlashMessage('Saved to your creations library.');
   };
 
-  const logout = () => {
-    localStorage.removeItem(SESSION_KEY);
+  const loadCreation = (entry: SavedCreation) => {
+    setTitle(entry.title);
+    setScene(entry.scene);
+    setFlashMessage('Saved creation loaded into workspace.');
+  };
+
+  const deleteCreation = (id: string) => {
+    setCreations((current) => current.filter((entry) => entry.id !== id));
+    setFlashMessage('Saved creation deleted.');
+  };
+
+  const resetWorkspace = () => {
+    setTitle(defaultDraft.title);
+    setScene(defaultDraft.scene);
+    setGoal(defaultDraft.goal);
+    setPrompt(defaultDraft.prompt);
+    setCharacters([]);
+    setFlashMessage('Workspace reset.');
+  };
+
+  const signOut = () => {
+    localStorage.removeItem(STORAGE_KEYS.session);
     setUser(null);
     setEmail('');
     setPassword('');
     setDisplayName('');
-    setTitle(defaultWritingState.title);
-    setScene(defaultWritingState.scene);
-    setGoal(defaultWritingState.goal);
-    setPrompt(defaultWritingState.prompt);
-    setCharacters(defaultWritingState.characters);
+    setAuthError('');
+
+    setTitle(defaultDraft.title);
+    setScene(defaultDraft.scene);
+    setGoal(defaultDraft.goal);
+    setPrompt(defaultDraft.prompt);
+    setCharacters([]);
+    setCreations([]);
+  };
+
+  const submitAuth = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setAuthError('');
+
+    const cleanedEmail = normalizeEmail(email);
+    const cleanedPassword = password.trim();
+    const cleanedDisplayName = displayName.trim();
+
+    if (!cleanedEmail || !cleanedPassword) {
+      setAuthError('Please enter both email and password.');
+      return;
+    }
+
+    const users = readUsers();
+
+    if (mode === 'signup') {
+      if (!cleanedDisplayName) {
+        setAuthError('Display name is required.');
+        return;
+      }
+
+      if (users.some((candidate) => candidate.email === cleanedEmail)) {
+        setAuthError('That email is already registered.');
+        return;
+      }
+
+      const createdUser: StoredUser = {
+        email: cleanedEmail,
+        password: cleanedPassword,
+        displayName: cleanedDisplayName
+      };
+
+      writeUsers([...users, createdUser]);
+      localStorage.setItem(STORAGE_KEYS.session, createdUser.email);
+      setUser(createdUser);
+      setCreations([]);
+      resetWorkspace();
+      return;
+    }
+
+    const existing = users.find(
+      (candidate) => candidate.email === cleanedEmail && candidate.password === cleanedPassword
+    );
+
+    if (!existing) {
+      setAuthError('Email or password is incorrect.');
+      return;
+    }
+
+    localStorage.setItem(STORAGE_KEYS.session, existing.email);
+    setUser(existing);
+
+    const savedDraft = readDraft(existing.email);
+    setTitle(savedDraft.title);
+    setScene(savedDraft.scene);
+    setGoal(savedDraft.goal);
+    setPrompt(savedDraft.prompt);
+    setCharacters(savedDraft.characters || []);
+    setCreations(readCreations(existing.email));
   };
 
   if (!user) {
     return (
       <main className="page auth-page">
-        <section className="card auth-card">
-          <p className="eyebrow">Creative Writing Studio</p>
-          <h1>{isRegister ? 'Create your account' : 'Welcome back, writer'}</h1>
-          <p className="muted">Sign in to save your drafts and character notes by user profile.</p>
+        <section className="panel">
+          <p className="eyebrow">Lucid's Dreamscapes</p>
+          <h1>{mode === 'signin' ? 'Welcome back' : 'Create your writer account'}</h1>
+          <p className="muted">Everything is saved locally to this browser while you prototype.</p>
 
-          <form className="stack" onSubmit={handleAuth}>
-            {isRegister && (
+          <form className="stack" onSubmit={submitAuth}>
+            {mode === 'signup' && (
               <label>
                 Display name
-                <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Avery" />
+                <input
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  placeholder="Avery"
+                />
               </label>
             )}
+
             <label>
               Email
               <input
@@ -234,6 +332,7 @@ const App: React.FC = () => {
                 placeholder="writer@example.com"
               />
             </label>
+
             <label>
               Password
               <input
@@ -243,12 +342,18 @@ const App: React.FC = () => {
                 placeholder="••••••••"
               />
             </label>
-            {authError && <p className="auth-error">{authError}</p>}
-            <button type="submit">{isRegister ? 'Create Account' : 'Sign In'}</button>
+
+            {authError && <p className="error">{authError}</p>}
+
+            <button type="submit">{mode === 'signin' ? 'Sign In' : 'Create Account'}</button>
           </form>
 
-          <button type="button" className="link" onClick={() => setIsRegister((previous) => !previous)}>
-            {isRegister ? 'Already have an account? Sign in' : 'New here? Create an account'}
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={() => setMode((current) => (current === 'signin' ? 'signup' : 'signin'))}
+          >
+            {mode === 'signin' ? 'Need an account? Sign up' : 'Already registered? Sign in'}
           </button>
         </section>
       </main>
@@ -257,29 +362,33 @@ const App: React.FC = () => {
 
   return (
     <main className="page">
-      <header className="hero card">
-        <div className="topbar">
+      <header className="panel">
+        <div className="header-row">
           <div>
-            <p className="eyebrow">Creative Writing Studio</p>
-            <h1>Write stories that feel alive.</h1>
-            <p>A fresh, focused space for drafting scenes, tracking progress, and shaping character arcs.</p>
+            <p className="eyebrow">Lucid's Dreamscapes</p>
+            <h1>Dream deeper. Write brighter.</h1>
+            <p className="muted">A writing sanctuary for scenes, story sparks, and saved dream drafts.</p>
           </div>
-          <div className="account-box">
-            <p className="muted">Signed in as</p>
+          <div className="account-card">
+            <span className="muted">Signed in as</span>
             <strong>{user.displayName}</strong>
-            <span>{user.email}</span>
-            <button type="button" onClick={logout}>Log out</button>
+            <small>{user.email}</small>
+            <button type="button" onClick={signOut}>Sign out</button>
           </div>
         </div>
       </header>
 
-      <section className="grid">
-        <article className="card">
-          <h2>Manuscript Workspace</h2>
+      {flashMessage && <p className="flash">{flashMessage}</p>}
+
+      <section className="content-grid">
+        <article className="panel">
+          <h2>Dream Manuscript Workspace</h2>
+
           <label>
             Project title
             <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="My Next Novel" />
           </label>
+
           <label>
             Daily word goal
             <input
@@ -287,9 +396,10 @@ const App: React.FC = () => {
               min={100}
               step={50}
               value={goal}
-              onChange={(event) => setGoal(Number(event.target.value) || 100)}
+              onChange={(event) => setGoal(Math.max(100, Number(event.target.value) || 100))}
             />
           </label>
+
           <label>
             Current scene ({words} words)
             <textarea
@@ -298,30 +408,47 @@ const App: React.FC = () => {
               placeholder="Open with a sentence that makes the reader lean in..."
             />
           </label>
-          <div className="meter" aria-label="word-goal-progress">
+
+          <div className="meter" aria-label="word progress meter">
             <span style={{ width: `${progress}%` }} />
           </div>
-          <p className="muted">
-            <strong>{title}</strong> — {progress}% of today&apos;s goal complete.
-          </p>
+          <p className="muted">{progress}% of your daily goal completed.</p>
+
+          <div className="button-row">
+            <button type="button" onClick={saveCreation}>Save Creation</button>
+            <button type="button" className="button-secondary" onClick={resetWorkspace}>Reset Workspace</button>
+          </div>
         </article>
 
-        <article className="card">
-          <h2>Prompt Generator</h2>
+        <article className="panel">
+          <h2>Dream Prompt + Character Tools</h2>
+
           <p className="prompt">{prompt}</p>
-          <button type="button" onClick={generatePrompt}>New Prompt</button>
+          <button type="button" onClick={generatePrompt}>Generate Prompt</button>
 
           <h3>Character Forge</h3>
-          <form onSubmit={addCharacter} className="stack">
-            <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Character name" />
-            <input value={role} onChange={(event) => setRole(event.target.value)} placeholder="Role in story" />
-            <input value={desire} onChange={(event) => setDesire(event.target.value)} placeholder="Core desire" />
+          <form className="stack" onSubmit={addCharacter}>
+            <input
+              value={characterName}
+              onChange={(event) => setCharacterName(event.target.value)}
+              placeholder="Character name"
+            />
+            <input
+              value={characterRole}
+              onChange={(event) => setCharacterRole(event.target.value)}
+              placeholder="Role in story"
+            />
+            <input
+              value={characterDesire}
+              onChange={(event) => setCharacterDesire(event.target.value)}
+              placeholder="Core desire"
+            />
             <button type="submit">Add Character</button>
           </form>
 
-          <ul className="characters">
+          <ul className="list">
             {characters.length === 0 ? (
-              <li className="muted">No characters yet. Start with your protagonist.</li>
+              <li className="list-empty">No characters yet. Add your protagonist to start.</li>
             ) : (
               characters.map((character) => (
                 <li key={character.id}>
@@ -333,6 +460,29 @@ const App: React.FC = () => {
             )}
           </ul>
         </article>
+      </section>
+
+      <section className="panel">
+        <h2>Dream Archive</h2>
+        {creations.length === 0 ? (
+          <p className="muted">No saved creations yet. Save your first scene from the workspace.</p>
+        ) : (
+          <ul className="list creations-list">
+            {creations.map((entry) => (
+              <li key={entry.id}>
+                <div>
+                  <strong>{entry.title}</strong>
+                  <p className="muted">{new Date(entry.savedAt).toLocaleString()} · {entry.words} words</p>
+                  <p className="excerpt">{entry.scene.slice(0, 220)}{entry.scene.length > 220 ? '…' : ''}</p>
+                </div>
+                <div className="button-row actions">
+                  <button type="button" onClick={() => loadCreation(entry)}>Load</button>
+                  <button type="button" className="danger" onClick={() => deleteCreation(entry.id)}>Delete</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </main>
   );
