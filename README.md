@@ -1,20 +1,32 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Creative Writing Studio
 
-# Run and deploy your AI Studio app
+A clean writing-first web app built with React + Vite.
 
-This contains everything you need to run your app locally.
+## Features
 
-View your app in AI Studio: https://ai.studio/apps/drive/1hE9UK8wHXKySnty9qE5CAd4qPLcukSyp
+- Email/password login and account creation flow.
+- Per-user draft persistence in local storage.
+- Save completed scenes into a personal creations library.
+- Reload or delete saved creations from your account.
+- Focused manuscript editor with live word count.
+- Daily word-goal progress tracker.
+- One-click creative prompt generator.
+- Character forge to track names, roles, and motivations.
 
-## Run Locally
+## Notes
 
-**Prerequisites:**  Node.js
+- Authentication and data are currently local-only (`localStorage`) for fast prototyping.
+- This means accounts are tied to the current browser/device.
 
+## Run locally
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+```bash
+npm install
+npm run dev
+```
+
+## Build
+
+```bash
+npm run build
+```

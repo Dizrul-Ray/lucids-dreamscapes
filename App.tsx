@@ -1,103 +1,422 @@
+import React, { useEffect, useMemo, useState } from 'react';
 
-import React, { useState, useEffect } from 'react';
-import { ViewState, User } from './types';
-import { supabase } from './services/supabase';
-import AuthView from './views/AuthView';
-import DashboardView from './views/DashboardView';
-import BookshelfView from './views/BookshelfView';
-import ImageToStoryView from './views/ImageToStoryView';
-import StoryToImageView from './views/StoryToImageView';
-import AdminWriterView from './views/AdminWriterView';
-import MotherView from './views/MotherView';
-import Layout from './components/Layout';
-import { getUserProfile } from './utils';
+type Character = {
+  id: number;
+  name: string;
+  role: string;
+  desire: string;
+};
+
+type SavedCreation = {
+  id: number;
+  savedAt: string;
+  title: string;
+  scene: string;
+  words: number;
+};
+
+type StoredUser = {
+  email: string;
+  password: string;
+  displayName: string;
+};
+
+type WritingState = {
+  title: string;
+  scene: string;
+  goal: number;
+  prompt: string;
+  characters: Character[];
+};
+
+const openingIdeas = [
+  'A librarian discovers a handwritten map hidden inside a returned book.',
+  'On the day rain disappears forever, a city starts to remember forgotten promises.',
+  'A ghostwriter begins hearing the voice of the author they are impersonating.',
+  'Every midnight, one apartment in the building resets to a different decade.',
+  'A chef can taste emotions in every dish and uncovers a crime through flavor.'
+];
+
+const conflictIdeas = [
+  'The protagonist must choose between telling the truth and protecting someone they love.',
+  'A secret society offers power in exchange for one precious memory each month.',
+  'Two rivals are forced to collaborate before a deadline that cannot be moved.',
+  'A missing person returns with a warning no one believes.',
+  'A magical ability works perfectly, except when it is needed most.'
+];
+
+const settingIdeas = [
+  'solar-punk floating market',
+  'wind-beaten coastal monastery',
+  'underground city archive',
+  'forest train line at twilight',
+  'quiet suburb with one impossible house'
+];
+
+const DEFAULT_PROMPT = 'Click “New Prompt” to spark your next scene.';
+const USERS_KEY = 'creative-writing-users';
+const SESSION_KEY = 'creative-writing-session';
+
+const defaultWritingState: WritingState = {
+  title: 'Untitled Manuscript',
+  scene: '',
+  goal: 750,
+  prompt: DEFAULT_PROMPT,
+  characters: []
+};
+
+const getDraftKey = (email: string) => `creative-writing-draft:${email}`;
+const getCreationsKey = (email: string) => `creative-writing-creations:${email}`;
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [view, setView] = useState<ViewState>(ViewState.DASHBOARD);
-  const [loading, setLoading] = useState(true);
+  const [isRegister, setIsRegister] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [saveMessage, setSaveMessage] = useState('');
 
-  const loadUserSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        const profile = await getUserProfile(session.user.id);
-        const email = session.user.email?.toLowerCase();
-        
-        // Admin Whitelist
-        const admins = ['dizrul@icloud.com', 'verifythis08@gmail.com'];
-        const isAdmin = (email && admins.includes(email)) || profile?.role === 'admin';
+  const [user, setUser] = useState<StoredUser | null>(null);
 
-        setUser({
-            id: session.user.id,
-            email: email || '',
-            name: profile?.username || session.user.user_metadata.name || 'Dreamer',
-            role: isAdmin ? 'admin' : 'user'
-        });
-        // Stay on current view if refreshing, or default to dashboard
-      } else {
-        setUser(null);
-        // Do not force AUTH view. Allow guests to see public pages.
-        if (view === ViewState.WRITER_DESK || view === ViewState.ADMIN) {
-            setView(ViewState.AUTH);
-        }
-      }
-      setLoading(false);
-  };
+  const [title, setTitle] = useState(defaultWritingState.title);
+  const [scene, setScene] = useState(defaultWritingState.scene);
+  const [goal, setGoal] = useState(defaultWritingState.goal);
+  const [prompt, setPrompt] = useState(defaultWritingState.prompt);
+  const [characters, setCharacters] = useState<Character[]>(defaultWritingState.characters);
+  const [savedCreations, setSavedCreations] = useState<SavedCreation[]>([]);
+
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('');
+  const [desire, setDesire] = useState('');
 
   useEffect(() => {
-    loadUserSession();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-       if (session) {
-           loadUserSession();
-       } else {
-           setUser(null);
-           // If on a protected route, go to auth. Otherwise stay put.
-           setView(prev => (prev === ViewState.WRITER_DESK ? ViewState.AUTH : prev));
-       }
-    });
-    return () => subscription.unsubscribe();
+    const sessionEmail = localStorage.getItem(SESSION_KEY);
+    const users: StoredUser[] = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    const activeUser = users.find((stored) => stored.email === sessionEmail);
+    if (!activeUser) return;
+
+    setUser(activeUser);
+
+    const draftRaw = localStorage.getItem(getDraftKey(activeUser.email));
+    if (draftRaw) {
+      const draft = JSON.parse(draftRaw) as WritingState;
+      setTitle(draft.title);
+      setScene(draft.scene);
+      setGoal(draft.goal);
+      setPrompt(draft.prompt);
+      setCharacters(draft.characters || []);
+    }
+
+    const creationsRaw = localStorage.getItem(getCreationsKey(activeUser.email));
+    if (creationsRaw) {
+      setSavedCreations(JSON.parse(creationsRaw) as SavedCreation[]);
+    }
   }, []);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setView(ViewState.DASHBOARD);
+  useEffect(() => {
+    if (!user) return;
+    const payload: WritingState = { title, scene, goal, prompt, characters };
+    localStorage.setItem(getDraftKey(user.email), JSON.stringify(payload));
+  }, [user, title, scene, goal, prompt, characters]);
+
+  useEffect(() => {
+    if (!user) return;
+    localStorage.setItem(getCreationsKey(user.email), JSON.stringify(savedCreations));
+  }, [user, savedCreations]);
+
+  const words = useMemo(() => {
+    const trimmed = scene.trim();
+    return trimmed ? trimmed.split(/\s+/).length : 0;
+  }, [scene]);
+
+  const progress = Math.min(100, Math.round((words / goal) * 100));
+
+  const generatePrompt = () => {
+    const opener = openingIdeas[Math.floor(Math.random() * openingIdeas.length)];
+    const conflict = conflictIdeas[Math.floor(Math.random() * conflictIdeas.length)];
+    const setting = settingIdeas[Math.floor(Math.random() * settingIdeas.length)];
+
+    setPrompt(`${opener} Set it in a ${setting}. ${conflict}`);
   };
 
-  const renderContent = () => {
-    switch (view) {
-      case ViewState.AUTH:
-        return <AuthView />;
-      case ViewState.DASHBOARD:
-        return <DashboardView user={user} onNavigate={setView} />;
-      case ViewState.BOOKSHELF:
-        return <BookshelfView />;
-      case ViewState.MOTHER:
-        return <MotherView />;
-      case ViewState.IMG_TO_STORY:
-        return <ImageToStoryView user={user} />;
-      case ViewState.STORY_TO_IMG:
-        return <StoryToImageView user={user} />;
-      case ViewState.WRITER_DESK:
-        if (user?.role !== 'admin') return <DashboardView user={user} onNavigate={setView} />;
-        return <AdminWriterView user={user} />;
-      default:
-        return <DashboardView user={user} onNavigate={setView} />;
+  const addCharacter = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!name.trim() || !role.trim() || !desire.trim()) return;
+
+    setCharacters((previous) => [
+      ...previous,
+      {
+        id: Date.now(),
+        name: name.trim(),
+        role: role.trim(),
+        desire: desire.trim()
+      }
+    ]);
+
+    setName('');
+    setRole('');
+    setDesire('');
+  };
+
+  const saveCreation = () => {
+    const cleanedScene = scene.trim();
+    if (!cleanedScene) {
+      setSaveMessage('Write something before saving.');
+      return;
     }
+
+    const creation: SavedCreation = {
+      id: Date.now(),
+      savedAt: new Date().toISOString(),
+      title: title.trim() || 'Untitled Manuscript',
+      scene: cleanedScene,
+      words,
+    };
+
+    setSavedCreations((previous) => [creation, ...previous]);
+    setSaveMessage('Saved to your creations library.');
   };
 
-  if (loading) return <div className="min-h-screen bg-lucid-900 flex items-center justify-center text-lucid-accent font-display tracking-widest animate-pulse">Entering the Dreamscape...</div>;
+  const loadCreation = (creation: SavedCreation) => {
+    setTitle(creation.title);
+    setScene(creation.scene);
+    setSaveMessage('Loaded saved creation into your workspace.');
+  };
 
-  // If view is AUTH, show auth view standalone (for login page)
-  if (view === ViewState.AUTH) {
-      return <AuthView />;
+  const deleteCreation = (id: number) => {
+    setSavedCreations((previous) => previous.filter((creation) => creation.id !== id));
+    setSaveMessage('Saved creation removed.');
+  };
+
+  const handleAuth = (event: React.FormEvent) => {
+    event.preventDefault();
+    setAuthError('');
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !password.trim()) {
+      setAuthError('Please enter an email and password.');
+      return;
+    }
+
+    const users: StoredUser[] = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+
+    if (isRegister) {
+      if (!displayName.trim()) {
+        setAuthError('Please enter a display name.');
+        return;
+      }
+      if (users.some((existing) => existing.email === normalizedEmail)) {
+        setAuthError('An account with this email already exists.');
+        return;
+      }
+
+      const newUser: StoredUser = {
+        email: normalizedEmail,
+        password: password.trim(),
+        displayName: displayName.trim()
+      };
+
+      localStorage.setItem(USERS_KEY, JSON.stringify([...users, newUser]));
+      localStorage.setItem(SESSION_KEY, newUser.email);
+      setUser(newUser);
+      setSavedCreations([]);
+      return;
+    }
+
+    const existing = users.find((stored) => stored.email === normalizedEmail && stored.password === password.trim());
+    if (!existing) {
+      setAuthError('Incorrect email or password.');
+      return;
+    }
+
+    localStorage.setItem(SESSION_KEY, existing.email);
+    setUser(existing);
+
+    const draftRaw = localStorage.getItem(getDraftKey(existing.email));
+    if (draftRaw) {
+      const draft = JSON.parse(draftRaw) as WritingState;
+      setTitle(draft.title);
+      setScene(draft.scene);
+      setGoal(draft.goal);
+      setPrompt(draft.prompt);
+      setCharacters(draft.characters || []);
+    } else {
+      setTitle(defaultWritingState.title);
+      setScene(defaultWritingState.scene);
+      setGoal(defaultWritingState.goal);
+      setPrompt(defaultWritingState.prompt);
+      setCharacters(defaultWritingState.characters);
+    }
+
+    const creationsRaw = localStorage.getItem(getCreationsKey(existing.email));
+    setSavedCreations(creationsRaw ? (JSON.parse(creationsRaw) as SavedCreation[]) : []);
+  };
+
+  const logout = () => {
+    localStorage.removeItem(SESSION_KEY);
+    setUser(null);
+    setEmail('');
+    setPassword('');
+    setDisplayName('');
+    setSaveMessage('');
+    setTitle(defaultWritingState.title);
+    setScene(defaultWritingState.scene);
+    setGoal(defaultWritingState.goal);
+    setPrompt(defaultWritingState.prompt);
+    setCharacters(defaultWritingState.characters);
+    setSavedCreations([]);
+  };
+
+  if (!user) {
+    return (
+      <main className="page auth-page">
+        <section className="card auth-card">
+          <p className="eyebrow">Creative Writing Studio</p>
+          <h1>{isRegister ? 'Create your account' : 'Welcome back, writer'}</h1>
+          <p className="muted">Sign in to save your drafts and creations by user profile.</p>
+
+          <form className="stack" onSubmit={handleAuth}>
+            {isRegister && (
+              <label>
+                Display name
+                <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Avery" />
+              </label>
+            )}
+            <label>
+              Email
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="writer@example.com"
+              />
+            </label>
+            <label>
+              Password
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="••••••••"
+              />
+            </label>
+            {authError && <p className="auth-error">{authError}</p>}
+            <button type="submit">{isRegister ? 'Create Account' : 'Sign In'}</button>
+          </form>
+
+          <button type="button" className="link" onClick={() => setIsRegister((previous) => !previous)}>
+            {isRegister ? 'Already have an account? Sign in' : 'New here? Create an account'}
+          </button>
+        </section>
+      </main>
+    );
   }
 
   return (
-    <Layout currentView={view} setCurrentView={setView} user={user} logout={handleLogout}>
-      {renderContent()}
-    </Layout>
+    <main className="page">
+      <header className="hero card">
+        <div className="topbar">
+          <div>
+            <p className="eyebrow">Creative Writing Studio</p>
+            <h1>Write stories that feel alive.</h1>
+            <p>A fresh, focused space for drafting scenes, tracking progress, and shaping character arcs.</p>
+          </div>
+          <div className="account-box">
+            <p className="muted">Signed in as</p>
+            <strong>{user.displayName}</strong>
+            <span>{user.email}</span>
+            <button type="button" onClick={logout}>Log out</button>
+          </div>
+        </div>
+      </header>
+
+      <section className="grid">
+        <article className="card">
+          <h2>Manuscript Workspace</h2>
+          <label>
+            Project title
+            <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="My Next Novel" />
+          </label>
+          <label>
+            Daily word goal
+            <input
+              type="number"
+              min={100}
+              step={50}
+              value={goal}
+              onChange={(event) => setGoal(Number(event.target.value) || 100)}
+            />
+          </label>
+          <label>
+            Current scene ({words} words)
+            <textarea
+              value={scene}
+              onChange={(event) => setScene(event.target.value)}
+              placeholder="Open with a sentence that makes the reader lean in..."
+            />
+          </label>
+          <div className="meter" aria-label="word-goal-progress">
+            <span style={{ width: `${progress}%` }} />
+          </div>
+          <p className="muted">
+            <strong>{title}</strong> — {progress}% of today&apos;s goal complete.
+          </p>
+          <button type="button" onClick={saveCreation}>Save This Creation</button>
+          {saveMessage && <p className="save-message">{saveMessage}</p>}
+        </article>
+
+        <article className="card">
+          <h2>Prompt Generator</h2>
+          <p className="prompt">{prompt}</p>
+          <button type="button" onClick={generatePrompt}>New Prompt</button>
+
+          <h3>Character Forge</h3>
+          <form onSubmit={addCharacter} className="stack">
+            <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Character name" />
+            <input value={role} onChange={(event) => setRole(event.target.value)} placeholder="Role in story" />
+            <input value={desire} onChange={(event) => setDesire(event.target.value)} placeholder="Core desire" />
+            <button type="submit">Add Character</button>
+          </form>
+
+          <ul className="characters">
+            {characters.length === 0 ? (
+              <li className="muted">No characters yet. Start with your protagonist.</li>
+            ) : (
+              characters.map((character) => (
+                <li key={character.id}>
+                  <strong>{character.name}</strong>
+                  <span>{character.role}</span>
+                  <p>Wants: {character.desire}</p>
+                </li>
+              ))
+            )}
+          </ul>
+        </article>
+      </section>
+
+      <section className="card">
+        <h2>Saved Creations</h2>
+        {savedCreations.length === 0 ? (
+          <p className="muted">Nothing saved yet. Create a scene and click “Save This Creation”.</p>
+        ) : (
+          <ul className="saved-list">
+            {savedCreations.map((creation) => (
+              <li key={creation.id}>
+                <div>
+                  <strong>{creation.title}</strong>
+                  <p className="muted">{new Date(creation.savedAt).toLocaleString()} · {creation.words} words</p>
+                  <p className="saved-excerpt">{creation.scene.slice(0, 180)}{creation.scene.length > 180 ? '…' : ''}</p>
+                </div>
+                <div className="saved-actions">
+                  <button type="button" onClick={() => loadCreation(creation)}>Load</button>
+                  <button type="button" className="danger" onClick={() => deleteCreation(creation.id)}>Delete</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </main>
   );
 };
 
